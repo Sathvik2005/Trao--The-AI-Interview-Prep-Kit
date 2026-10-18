@@ -1,0 +1,20 @@
+[
+  {
+    "id": "local-frontend",
+    "jd": "Senior Frontend Engineer. Required: 5+ years of React and TypeScript.",
+    "company_url": "http://127.0.0.1:4381/",
+    "days": 3
+  },
+  {
+    "id": "invalid-days",
+    "jd": "A role description that is long enough for validation.",
+    "company_url": "http://127.0.0.1:4381/",
+    "days": 61
+  },
+  {
+    "id": "invalid-url",
+    "jd": "Another valid job description fixture for this case.",
+    "company_url": "file:///tmp/not-a-company",
+    "days": 1
+  }
+]
