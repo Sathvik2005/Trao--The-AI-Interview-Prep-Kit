@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { join } from "node:path";
 import express from "express";
-import { MongoStore } from "./api/store.js";
+import { MemoryStore } from "./api/memory-store.js";
+import { MongoStore, type DatabaseStore } from "./api/store.js";
 import { createApp } from "./api/app.js";
 
 const port = Number(process.env.PORT || 3000);
@@ -9,14 +10,15 @@ const mongoUri = process.env.MONGODB_URI;
 const jwtSecret = process.env.JWT_SECRET;
 const production = process.env.NODE_ENV === "production";
 
-if (!mongoUri) throw new Error("MONGODB_URI is required.");
+if (!mongoUri && production) throw new Error("MONGODB_URI is required in production.");
 if (!jwtSecret || jwtSecret.length < 32) throw new Error("JWT_SECRET must be set to at least 32 characters.");
 
 const origins = (process.env.FRONTEND_ORIGIN || (production ? process.env.PUBLIC_APP_ORIGIN || "" : "http://localhost:5173,http://127.0.0.1:5173"))
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-const store = new MongoStore(mongoUri, process.env.MONGODB_DATABASE || "interview_prep_kit");
+if (!mongoUri) console.warn("MONGODB_URI is not set: using the in-memory store. Accounts and kits are lost on restart.");
+const store: DatabaseStore = mongoUri ? new MongoStore(mongoUri, process.env.MONGODB_DATABASE || "interview_prep_kit") : new MemoryStore();
 
 await store.initialize();
 const app = createApp({ store, jwtSecret, allowedOrigins: origins, production });

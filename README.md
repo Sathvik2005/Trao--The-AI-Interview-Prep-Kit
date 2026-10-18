@@ -119,13 +119,19 @@ Flashcards are shown one at a time with reveal. The user rates confidence 1-5 pe
 
 ## Setup
 
-Requires Node 20+ and a MongoDB instance (local or Atlas free tier).
+Requires Node 20+. Docker is **not** required. Pick one database option:
+
+**A. No database (quickest).** Leave `MONGODB_URI` empty in `.env`. The API uses an in-memory store; accounts and kits are lost on restart. Not allowed when `NODE_ENV=production`.
+
+**B. MongoDB without Docker.** Use a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster, or a locally installed `mongod`, and set `MONGODB_URI` to its connection string.
+
+**C. MongoDB with Docker (optional).** `docker compose up -d` starts MongoDB on `127.0.0.1:27017`, matching the default `MONGODB_URI` in `.env.example`.
 
 ```bash
 npm install
-cp .env.example .env     # then edit
+cp .env.example .env     # set JWT_SECRET (32+ chars) and GEMINI_API_KEY; see the database options above
 npm run dev              # API on :3000, web on :5173
-npm test
+npm test                 # tests use the in-memory store, no database needed
 npm run typecheck
 ```
 
@@ -135,7 +141,7 @@ npm run typecheck
 | --- | --- |
 | `NODE_ENV` | `production` enables private-address rejection |
 | `PORT` | API port |
-| `MONGODB_URI`, `MONGODB_DATABASE` | MongoDB connection |
+| `MONGODB_URI`, `MONGODB_DATABASE` | MongoDB connection; leave `MONGODB_URI` empty to use the in-memory store (dev only) |
 | `JWT_SECRET` | Session signing key, at least 32 random characters |
 | `FRONTEND_ORIGIN` | Comma-separated allowed CORS origins |
 | `GEMINI_API_KEY` | Gemini key (free from Google AI Studio) |
