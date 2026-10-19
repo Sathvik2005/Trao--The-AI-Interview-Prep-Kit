@@ -390,7 +390,7 @@ function Dashboard({ kits, jobs, onCreate, onBatch, onRetry, onDismiss, onOpen, 
         <label className="wide-field">Job description<textarea value={jd} onChange={(event) => setJd(event.target.value)} required minLength={20} maxLength={50000} rows={5} placeholder="Paste the role description. The clearest source text gives you the most useful prep." /></label>
         <div className="form-row"><label>Company website<input type="url" value={companyUrl} onChange={(event) => setCompanyUrl(event.target.value)} required placeholder="https://company.com" /></label><label className="days-field">Days to prepare<div className="number-control"><button type="button" onClick={() => setDays(Math.max(1, days - 1))} aria-label="One fewer day">−</button><input type="number" value={days} min={1} max={60} aria-label="Days to prepare" onChange={(event) => setDays(Math.min(60, Math.max(1, Number(event.target.value) || 1)))} /><button type="button" onClick={() => setDays(Math.min(60, days + 1))} aria-label="One more day">+</button></div></label></div>
         <div className="submit-row"><p>We crawl the company site, look for public interview discussion, and tie every question to a requirement in your description.</p><button className="primary-button" disabled={jd.trim().length < 20 || !companyUrl}>{building ? <><span className="button-loader" /> Build another</> : <>Build my kit <span aria-hidden="true">↗</span></>}</button></div>
-        <div className="batch-row"><label className="file-label">Preparing for several roles? Upload a JSON file of postings
+        <div className="batch-row"><button type="button" className="ghost-button" onClick={() => { setJd(EXAMPLE_POSTING.jd); setCompanyUrl(EXAMPLE_POSTING.company_url); setDays(EXAMPLE_POSTING.days); }}>Try an example posting</button><label className="file-label">Preparing for several roles? Upload a JSON file of postings
           <input type="file" accept="application/json,.json" onChange={(event) => { void readFile(event.target.files?.[0]); event.target.value = ""; }} /></label>
           <span className="file-hint">{fileName ? `Last upload: ${fileName}` : 'Format: [{"jd": "...", "company_url": "https://...", "days": 7}]'}</span></div>
       </form>
@@ -400,6 +400,33 @@ function Dashboard({ kits, jobs, onCreate, onBatch, onRetry, onDismiss, onOpen, 
       {kits.length ? <div className="kit-grid">{kits.map((saved) => <button className="kit-card" key={saved.id} onClick={() => onOpen(saved.id)}><div className="kit-card-top"><span className="company-initial">{saved.kit.source.company.slice(0, 1).toUpperCase()}</span><span className="card-arrow">↗</span></div><p className="company-name">{saved.kit.source.company}</p><h3>{saved.kit.role.title}</h3><div className="kit-card-bottom"><span>{saved.kit.schedule.days_available} days</span><span>{saved.kit.role.requirements.length} role signals</span><span className="card-date">{new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(saved.updated_at))}</span></div></button>)}</div> : <div className="empty-library"><span className="empty-symbol">↗</span><div><strong>Your library starts here.</strong><p>Build your first kit above; it’ll be ready to return to whenever you are.</p></div></div>}
     </section>
   </>;
+}
+
+const EXAMPLE_POSTING = {
+  jd: "Senior Full-Stack Engineer (Remote, EU timezones).\nYou will own features end to end across our TypeScript/React frontend and Node.js backend, and mentor junior engineers.\nRequirements: 5+ years of professional experience with TypeScript. Strong experience with React is required. Must have experience designing and operating PostgreSQL databases. Experience with ClickHouse is a bonus. Excellent written communication in a remote-first team.",
+  company_url: "https://posthog.com",
+  days: 5,
+};
+
+/** Printable one-pager: hidden on screen, shown by the browser's print dialog (Save as PDF). */
+function PrintSheet({ kit, practice }: { kit: InterviewKit; practice: Record<string, number> }) {
+  const byId = new Map(kit.questions.map((question) => [question.id, question]));
+  return <div className="print-only">
+    <h1>{kit.role.title} at {kit.source.company}</h1>
+    <p className="print-meta">{[kit.role.seniority, kit.source.location, `${kit.schedule.days_available} days`].filter(Boolean).join(" · ")}</p>
+    <h2>Company brief</h2>
+    <p>{kit.company_brief.summary}</p>
+    {kit.company_brief.what_they_do && <p>{kit.company_brief.what_they_do}</p>}
+    {kit.company_brief.hiring_process && <p><strong>How they hire:</strong> {kit.company_brief.hiring_process}</p>}
+    <h2>What they are asking for</h2>
+    <ul>{kit.role.requirements.map((requirement) => <li key={requirement.id}><strong>[{requirement.priority}]</strong> {requirement.text}</li>)}</ul>
+    <h2>Study plan</h2>
+    <ol>{kit.schedule.days.map((day) => <li key={day.day}><strong>Day {day.day}: {day.focus}</strong> ({day.minutes} min)<ul>{day.question_ids.map((id) => byId.get(id)).filter((question): question is Question => Boolean(question)).map((question) => <li key={question.id}>{question.prompt}</li>)}</ul></li>)}</ol>
+    <h2>Question bank</h2>
+    {CATEGORIES.map((category) => { const items = kit.questions.filter((question) => question.category === category); return items.length ? <section key={category}><h3>{category.replace("-", " ")}</h3>{items.map((question) => <div className="print-q" key={question.id}><p><strong>{question.prompt}</strong></p>{question.answer_outline && <p>{question.answer_outline}</p>}</div>)}</section> : null; })}
+    <h2>Flashcards</h2>
+    <ul>{kit.flashcards.map((card) => <li key={card.id}><strong>{card.front}</strong> {card.back}{practice[card.id] ? ` (confidence ${practice[card.id]}/5)` : ""}</li>)}</ul>
+  </div>;
 }
 
 function KitWorkspace({ saved, view, setView, onSave, saving, onConfidence, onRegenerate, onDelete }: {
@@ -513,9 +540,10 @@ function KitWorkspace({ saved, view, setView, onSave, saving, onConfidence, onRe
   const regenerating = Boolean(busy);
 
   return <>
-    <div className="kit-heading"><div><p className="eyebrow">PREPARATION KIT <span className="heading-slash">/</span> {draft.role.seniority || "ROLE PLAN"}</p><h1>{draft.role.title}<span className="heading-dot">.</span></h1><div className="kit-meta"><span className="meta-company">{draft.source.company}</span><span>{draft.schedule.days_available} days</span><span>{draft.role.requirements.length} requirements</span></div></div><div className="kit-heading-actions"><span className={`coverage-pill ${coveragePercent === 100 ? "coverage-complete" : ""}`}><span />{coveragePercent}% mapped</span><span className="save-state" role="status">{saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}</span>{dirty && <button className="primary-button save-button" disabled={saving} onClick={() => void flush()}>Save now</button>}</div></div>
+    <div className="kit-heading screen-only"><div><p className="eyebrow">PREPARATION KIT <span className="heading-slash">/</span> {draft.role.seniority || "ROLE PLAN"}</p><h1>{draft.role.title}<span className="heading-dot">.</span></h1><div className="kit-meta"><span className="meta-company">{draft.source.company}</span><span>{draft.schedule.days_available} days</span><span>{draft.role.requirements.length} requirements</span></div></div><div className="kit-heading-actions"><span className={`coverage-pill ${coveragePercent === 100 ? "coverage-complete" : ""}`}><span />{coveragePercent}% mapped</span><button className="ghost-button" onClick={() => window.print()} title="Print or save as PDF">Print one-pager</button><span className="save-state" role="status">{saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}</span>{dirty && <button className="primary-button save-button" disabled={saving} onClick={() => void flush()}>Save now</button>}</div></div>
     {localError && <div className="notice error-notice" role="alert"><span>{localError}</span><button onClick={() => setLocalError("")} aria-label="Dismiss error">×</button></div>}
     {regenerating && <div className="notice info-notice" role="status"><span><span className="button-loader dark" /> Regenerating {busy}… your edits elsewhere are kept.</span></div>}
+    <div className="screen-only">
     <nav className="kit-tabs" aria-label="Kit sections">{(["overview", "questions", "practice", "schedule"] as View[]).map((item) => <button key={item} className={view === item ? "selected" : ""} aria-current={view === item} onClick={() => setView(item)}>{item === "overview" ? "Brief & coverage" : item === "questions" ? "Question bank" : item === "practice" ? "Practice" : "Schedule"}{item === "questions" && <sup>{draft.questions.length}</sup>}</button>)}</nav>
 
     {view === "overview" && <div className="overview-layout">
@@ -555,6 +583,8 @@ function KitWorkspace({ saved, view, setView, onSave, saving, onConfidence, onRe
     {view === "schedule" && <section className="schedule-view"><div className="section-heading"><div><span className="section-number">05</span><h2>Your study rhythm</h2></div><span className="section-side-note">{draft.schedule.days_available} DAYS</span></div>
       <div className="toolbar"><label className="diff-label">Days<input type="number" min={1} max={60} value={scheduleDays} onChange={(event) => setScheduleDays(Math.min(60, Math.max(1, Number(event.target.value) || 1)))} /></label><button className="ghost-button" disabled={regenerating} onClick={() => void regenerate("the schedule", { section: "schedule", days: scheduleDays })}>↻ Rebuild schedule</button><span className="toolbar-help inline">Hardest, must-have material goes first. Your questions are not changed.</span></div>
       <div className="schedule-list">{draft.schedule.days.map((day) => { const dayQuestions = day.question_ids.map((id) => questionById.get(id)).filter((item): item is Question => Boolean(item)); return <article className="schedule-day" key={day.day}><span className="day-number">{String(day.day).padStart(2, "0")}</span><div className="day-copy"><h3>{day.focus}</h3><p>{dayQuestions.length ? `${dayQuestions.length} question${dayQuestions.length === 1 ? "" : "s"} to work through` : "Review your company and role context"}</p><div className="day-questions">{dayQuestions.map((question) => <span key={question.id}>{question.prompt}</span>)}</div></div><span className="day-time">{day.minutes}<small>MIN</small></span></article>; })}</div></section>}
+    </div>
+    <PrintSheet kit={draft} practice={practice} />
   </>;
 }
 

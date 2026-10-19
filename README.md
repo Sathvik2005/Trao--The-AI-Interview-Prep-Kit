@@ -77,6 +77,12 @@ Pure code (`src/domain/schedule.ts`). Questions are sorted must-have first, then
 
 Flashcards are shown least-confident first (unrated = 0, then 1–5). Confidence is stored per flashcard on the server. The panel shows how many cards are covered, lists the uncovered ones, and cards can be edited, pinned, added and deleted.
 
+## Creative feature: printable one-pager
+
+**Print one-pager** (top of every kit) turns the kit into a clean, print-styled document: company brief, how they hire, requirements marked must/nice, the day-by-day plan with the actual questions, the question bank by category with answer outlines, and flashcards with your confidence scores. Use the browser's *Save as PDF*.
+
+*Why:* interview prep happens away from a screen: on a commute, on paper, or in the last hour before the call. Everything the app builds is only useful if it can leave the app, and a one-page, offline copy of the plan with the questions already in it is what people actually carry into the day. It reuses the data already in the kit, so it needs no extra backend and never goes stale: it prints the current edited state.
+
 ## Security
 
 Passwords are bcrypt-hashed; sessions are JWTs that are also stored hashed server-side so logout revokes them; every kit query is scoped to the owner. External URLs are validated before fetch (http/https only; private, loopback and link-local addresses rejected in production including after DNS resolution and redirects), responses are limited to text content types and 1 MB (truncated), and redirects are capped. Page text and job descriptions are passed to the model inside JSON with an explicit instruction that they are data, never instructions. Helmet, rate limits and strict CORS are on.
