@@ -6,3 +6,5 @@ tmp/
 .env
 .env.*
 !.env.example
+# Local-only notes
+docs/DEMO_SCRIPT.md

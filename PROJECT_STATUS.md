@@ -15,7 +15,7 @@ Updated: 2026-10-19
 | S1 Schema and validation | PASS | Zod schema with cross-reference checks; optional provenance and research-note extensions |
 | S2 Research and generation | PASS | Ranked-link crawl, robots.txt, backoff, Hacker News search, per-category LLM calls, coverage second pass; live PostHog run |
 | S3 Batch evaluator | PASS | `npm run evaluate` on 3 cases (real site, stub, unreachable site, 60 days): all `ok`, Appendix B shape, failures isolated |
-| S4 Automated tests and robustness | PASS | 27 tests; live e2e 28 of 28 checks; model fallback chain and tolerant parsing |
+| S4 Automated tests and robustness | PASS | 28 tests; live e2e 28 of 28 checks; model fallback chain and tolerant parsing |
 | S5 Builder, regeneration, practice | PASS | Add/delete/reorder/move/pin, per-section regeneration, practice coverage, readiness, mock interview, today plan, print one-pager; 15 of 15 headless-Chrome checks pass against the live Vercel site |
 | S6 Integration | PASS | API with Atlas, job polling, dedupe, regeneration endpoint |
 | S7 Compliance audit | PASS | `docs/E2E_REPORT.md` maps every brief section to evidence |
@@ -27,7 +27,7 @@ Updated: 2026-10-19
 
 ## Verified checks
 - Real-browser UI flow (headless Chrome) against the live site: 15 of 15 pass, including edit autosave and regeneration that keeps the edit.
-- `npm run typecheck`, `npm run build`, `npm test -- --run` (27 tests) pass.
+- `npm run typecheck`, `npm run build`, `npm test -- --run` (28 tests) pass.
 - Live e2e (Atlas + Gemini + posthog.com + Hacker News): 28 of 28 pass, about 25 s per kit.
 - Batch command: 3 of 3 cases `ok` (posthog 4 days, stub 1 day, unreachable site 60 days).
 

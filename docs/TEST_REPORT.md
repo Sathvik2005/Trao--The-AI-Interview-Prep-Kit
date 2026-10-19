@@ -1,24 +1,37 @@
-# Test report (2026-10-19)
+# Test report
+
+Last full run: 2026-10-19.
 
 | Check | Result |
 |---|---|
 | `npm run typecheck` | pass |
-| `npm run build` (Vite production bundle) | pass |
-| `npm test -- --run` | 27 tests in 5 files, all pass |
+| `npm run build` | pass |
+| `npm test -- --run` | **28 tests, 5 files, all pass** |
 | `npm audit --omit=dev --audit-level=moderate` | 0 vulnerabilities |
-| Live e2e against Atlas, Gemini, posthog.com and Hacker News | 28 of 28 checks pass, about 25 s per kit |
-| `npm run evaluate` on a real site, a stub description and an unreachable site (60 days) | 3 of 3 `ok`, Appendix B shape |
+| Live end-to-end against Atlas, Gemini, posthog.com and Hacker News | **28 of 28 checks pass**, about 25 s per kit |
+| Same end-to-end against the deployed Render and Atlas stack | 28 of 28 pass |
+| Batch command from a fresh clone of GitHub (3 cases, environment variables only) | 3 of 3 `ok` in 71 s |
+| Real-browser UI flow (headless Chrome) against the local build and the deployed Vercel site | 15 of 15 pass |
+| On-demand coverage second pass against the deployed backend | verified (passes 1 to 2, gap closed) |
 
-## What the automated tests protect
-- Schedule allocation: exact day count, must-haves present, harder first, 1 and 60 days.
-- Coverage: uncovered requirements are detected by code and scheduling refuses uncovered must-haves.
-- Structure: unknown ids, duplicate ids and a schedule that omits questions are rejected.
-- Requirement grounding: a requirement whose quote is not in the description is rejected.
-- Regeneration: edited, hand-written and pinned questions survive; other categories stay; the schedule reconciles.
-- Research: ranked links, robots.txt, dead sites recorded as notes, private addresses rejected in production.
-- API: authentication, ownership isolation, session revocation, de-duplication, provenance on save.
+## What the automated suite protects
 
-The live e2e script exercises login, a signed-out request, a full generation with progress, de-duplication, an edit, a category regeneration, a schedule rebuild, practice confidence, an unreachable company site and a two-line description.
+| File | Covers |
+|---|---|
+| `test/domain.test.ts` (8) | Requirement grounding and stable ids; coverage detection; schedule allocation (exact days, must-haves present, harder first, 1 and 60 days); schema invariants (unknown ids, duplicate ids, missing schedule entries) |
+| `test/pipeline.test.ts` (4) | Company URL safety; a full kit from a realistic posting with injected network; no invented requirements from a stub |
+| `test/regenerate.test.ts` (6) | Category regeneration keeps edited, hand-written and pinned items and other categories; schedule rebuild; **on-demand coverage pass closes a gap and records the pass**; crawl link ranking, `robots.txt`, dead sites recorded as notes; category planning from the hiring process |
+| `test/api.test.ts` (7) | Authentication and ownership isolation; session revocation; weak passwords and invalid input; de-duplication; provenance assigned on save; health reports the real persistence |
+| `test/evaluate.test.ts` (3) | Batch contract: shape, order, isolated failures |
 
-## Browser check (headless Chrome against the real UI)
-15 of 15 pass: dashboard and today's plan, skip link first in tab order, unsaved state then autosave, edited badge, add a question, category regeneration keeps the edit and the hand-added question, persistence after reload, mock timer, outline reveal, rating advances, readiness ring, print sheet contains the edit, sign-out.
+## Live end-to-end script (28 checks)
+
+Login; a signed-out request is refused; a full generation with step-by-step progress; every must-have has a question; the schedule has exactly the requested days; questions are model-written; more than the homepage was crawled; a bonus requirement is marked `nice`; a duplicate submission returns the existing kit; an edit is saved with provenance; regenerating a category keeps the edit and the hand-written question and replaces generated ones, leaves other categories alone and keeps the schedule consistent; a schedule rebuild keeps questions; practice confidence is stored; an unreachable company site still yields a kit with an honest brief; a two-line description yields a thin kit with no invented requirements.
+
+## Real-browser flow (15 checks)
+
+Dashboard shows today's plan; the skip link is first in tab order; typing shows an unsaved state then autosaves; the edited badge appears; adding a question works; regenerating a category keeps the edit and the added question; changes persist after reload; the mock timer runs; the outline reveals; rating advances to the next question; readiness is shown; the print sheet contains the edit; sign-out returns to the sign-in screen.
+
+## Not covered by automated tests
+
+Visual regression, load testing, and accessibility auditing beyond keyboard order and labels. Question quality depends on the model and is validated structurally, not graded.

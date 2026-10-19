@@ -1,164 +1,168 @@
-# AI Interview Prep Kit
+# Prep Kit: an AI interview preparation kit
 
-Paste a job description and a company website; the app researches the company, extracts the role's requirements, and builds a kit you can reshape and practise against: company brief, role breakdown, categorised question bank, flashcards and a day-by-day study schedule.
+**Paste a job description and a company website. Get a researched, editable, practisable preparation kit.**
 
-## Live deployment
+[![Live app](https://img.shields.io/badge/live%20app-vercel-000?logo=vercel)](https://trao-the-ai-interview-prep-kit.vercel.app)
+[![API](https://img.shields.io/badge/api-render-46e3b7?logo=render&logoColor=000)](https://trao-interview-prep-kit-api.onrender.com/api/health)
+![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=nodedotjs&logoColor=fff)
+![TypeScript](https://img.shields.io/badge/typescript-strict-3178c6?logo=typescript&logoColor=fff)
+![React](https://img.shields.io/badge/react-19-61dafb?logo=react&logoColor=000)
+![MongoDB](https://img.shields.io/badge/mongodb-atlas-47a248?logo=mongodb&logoColor=fff)
+![Tests](https://img.shields.io/badge/tests-28%20passing-2ea44f)
 
-- App (Vercel): https://trao-the-ai-interview-prep-kit.vercel.app
-- API (Render): https://trao-interview-prep-kit-api.onrender.com/api/health
-- Reviewer login: create an account on the sign-in screen (password 12+ characters). The free Render service sleeps when idle, so the first request after a pause can take 30-60 seconds.
+![Overview of a generated kit: company brief, how they hire, sources, readiness and weak spots](docs/images/overview.jpg)
 
-## Stack and why
+Prep Kit crawls the company's own site, looks for public discussion of how they interview, extracts what the posting actually asks for, and combines it all into a kit: a company brief, a role breakdown, a categorised question bank, flashcards and a day-by-day study schedule. Everything can be edited, reordered, pinned and regenerated section by section **without losing your work**, and you can practise inside the app.
+
+- **Live app:** https://trao-the-ai-interview-prep-kit.vercel.app
+- **API health:** https://trao-interview-prep-kit-api.onrender.com/api/health
+- Render's free tier sleeps when idle; the first request after a pause can take 30 to 60 seconds.
+
+## What it does
+
+| | |
+|---|---|
+| **Research that responds to what it finds** | Crawls the company site, ranks links by how likely they are to describe the business or hiring, follows a careers page one level deeper, honours `robots.txt`, and searches public interview discussion. What is found changes which questions are asked. |
+| **Requirements you can trust** | Every requirement must carry a verbatim quote from the posting; anything the model cannot quote is dropped. `must` versus `nice` comes from the posting's own wording. |
+| **Coverage checked by code** | Code, not the model, finds requirements with no question and sends only those back for a targeted second pass (up to three), then falls back to a plain question so no must-have ships uncovered. |
+| **A builder that respects your edits** | Edit, add, delete, pin, reorder, and move questions between categories. Regenerate one category, the brief, the flashcards or the schedule; edited, hand-written and pinned items are kept. |
+| **Practice** | Flashcards least-confident first, a timed **mock interview** round, a **readiness score** with your weakest requirements, and a schedule that follows the calendar ("Today: day 2 of 5"). |
+| **Honest about gaps** | Dead site, no hiring page, a two-line posting, no public discussion: each yields a thin kit that says so, never an invented one. |
+| **Batch mode** | `npm run evaluate` runs the same pipeline over a file of postings. |
+| **Print one-pager** | Export the whole plan to a clean, printable page. |
+
+## Screenshots
+
+| Question bank | Practice |
+|---|---|
+| ![Question bank with category tags, edit and pin controls](docs/images/questions.jpg) | ![Flashcard practice with confidence rating](docs/images/practice.jpg) |
+| **Mock interview** | **Study schedule** |
+| ![Timed mock interview with outline reveal](docs/images/mock.jpg) | ![Day by day schedule with today highlighted](docs/images/schedule.jpg) |
+
+## How it works
+
+```mermaid
+flowchart LR
+  JD[Pasted job description] --> R[Extract requirements<br/>LLM + verbatim-quote check]
+  JD --> Role[Describe role<br/>LLM]
+  URL[Company URL] --> C[Crawl company site<br/>ranked links, robots.txt]
+  URL --> D[Search public discussion<br/>Hacker News]
+  C --> B[Write company brief<br/>LLM over crawled text]
+  D --> B
+  R --> Q[Generate questions<br/>one call per category]
+  B --> Q
+  Q --> V{Coverage check<br/>code}
+  V -- gaps --> G[Targeted second pass<br/>up to 3, then template]
+  G --> V
+  V -- covered --> F[Flashcards<br/>LLM]
+  F --> S[Schedule<br/>code]
+  S --> K[(Validated kit)]
+```
+
+Two steps are deliberately **not** given to the model: coverage comparison and schedule allocation. They are arithmetic, and a model asked "is everything covered?" will simply say yes. See [docs/PIPELINE.md](docs/PIPELINE.md).
+
+## Tech stack
 
 | Layer | Choice | Why |
 |---|---|---|
-| Frontend | React 19 + Vite + plain CSS (TypeScript) | The brief prefers Next.js + Tailwind but allows equivalents. The UI is an authenticated single-page tool with no SEO or server-rendering need, so Vite gives a faster build and a simpler Vercel deploy. CSS is hand-written with design tokens. |
-| Backend | Node 20+ / Express (TypeScript) | As specified. |
-| Database | MongoDB (Atlas free tier) | As specified. An in-memory store is used for local development only when `MONGODB_URI` is unset or unreachable. Production refuses to start without Mongo. |
-| LLM | Google Gemini, `gemini-flash-lite-latest` (free tier) | Genuine free tier, JSON mode, fast. Thinking is disabled to keep calls around 10 s. Override with `GEMINI_MODEL`. |
-| Retrieval | `fetch` + a small HTML cleaner, Hacker News Algolia API | No paid search key. See "Retrieval". |
+| Frontend | React 19, Vite, TypeScript, hand-written CSS | An authenticated single-page tool with no server-rendering need; fast builds and a static deploy. The brief prefers Next.js with Tailwind but allows equivalents. |
+| Backend | Node 20+, Express, TypeScript | As specified. |
+| Database | MongoDB (Atlas free tier) | As specified. An in-memory store is used for local development only. |
+| LLM | Google Gemini (`gemini-flash-lite-latest`, fallback models), free tier | Genuine free tier, JSON mode, fast. Calls are retried, rate-limited and fall back across models. |
+| Retrieval | `fetch` and a small HTML cleaner, Hacker News Algolia API | No paid search key needed. |
 | Validation | Zod | One schema is the contract for the API, the batch CLI and the UI. |
+| Tests | Vitest, Supertest | 28 tests; plus live end-to-end and real-browser checks. |
+| Hosting | Vercel (frontend), Render (API), MongoDB Atlas | All free tiers. |
 
-## Architecture
-
-```
-src/
-  domain/      schema + validation, coverage, schedule, requirement grounding, reconcile/provenance (pure, no I/O)
-  research/    company crawl, link ranking, robots.txt, SSRF guard, public-discussion search
-  llm/         Gemini client (retry/backoff) + the separately-prompted generation steps
-  pipeline/    orchestration: generateInterviewKit, regenerateSection
-  api/         Express routes, auth, background jobs, Mongo / in-memory stores
-  cli/         batch entry point (calls the same pipeline as the API)
-  web/         React UI
-```
-
-Retrieval, extraction, generation, scheduling and persistence are separate modules. The **batch CLI and the web app call the same `generateInterviewKit`**.
-
-## Pipeline: what each step is responsible for
-
-1. **Extract requirements** (LLM, then code). The model must return a *verbatim quote* for each requirement; code drops any candidate whose quote is not in the description, so nothing is invented. `must` vs `nice` comes from the posting's wording ("required" vs "bonus points").
-2. **Describe the role** (LLM): title, seniority, location, responsibilities, only if stated.
-3. **Research** (code, no LLM): crawl the homepage, rank internal links by path and anchor text (careers, interview, engineering, handbook, about…), fetch the best ones politely, and follow one level onward from a good hiring page. Then search public discussion. A fixed path list is not used.
-4. **Company brief** (LLM over crawled text): summary, what they do, and how they hire. If nothing was retrieved, the brief says so instead of guessing.
-5. **Questions, one call per category** (LLM): technical, behavioural, system-design and company-fit are generated separately. Categories are chosen by code from each requirement's kind; system-design is added when a requirement is architectural or the hiring-process text mentions a system-design round, so what was *found* changes what is asked.
-6. **Coverage check and second pass** (code decides, LLM fills): code computes which requirements have no question. Those go back to the model for targeted generation. Up to 3 passes; anything still uncovered gets a plain template question and a note, so a must-have never ships uncovered. `coverage.passes` records how many passes ran.
-7. **Flashcards** (LLM), then **schedule** (pure code).
-
-Two steps are deliberately not given to the model: **schedule allocation** and **coverage comparison**.
-
-### Retrieval and sources
-
-- The company website: homepage, ranked internal links, and one level beyond a hiring/about page (up to 8 pages). `robots.txt` is honoured (`User-agent: *` disallows); requests are spaced 400 ms apart; 429/503 responses back off and retry.
-- Public discussion: the **Hacker News Algolia search API** (keyless, intended for programmatic use), filtered to items that name the company and mention interviews. Used as evidence for the brief and for hiring-process hints; each source URL is listed in the kit.
-- Not used: job boards, Glassdoor, LinkedIn (they block automated access and their terms prohibit scraping).
-
-### Edge cases (what happens)
-
-| Case | Behaviour |
-|---|---|
-| Company URL invalid / 404 / timeout | A kit is still produced; `research_notes` records the gap and the brief says nothing could be retrieved. Batch status stays `ok`. |
-| No hiring page found | Recorded in `research_notes`; the rest of the kit is unaffected. |
-| Two-line description | Zero or few requirements, a thin kit that says so; nothing is invented. |
-| No public discussion | Recorded in `research_notes`. |
-| Model returns bad JSON / is rate-limited | Zod validates every response; calls retry with exponential backoff and honour `Retry-After` (5 attempts). A failed category is retried by the coverage loop. |
-| Same posting submitted twice | The submission is hashed (description + URL + days); the existing kit is returned instead of generating again, and an in-flight duplicate returns the running job. |
-| 1-day or 60-day schedule | Both are valid; the schedule has exactly the requested number of days. |
-| Generation takes ~90 s or fails halfway | `POST /api/kits` returns a job id immediately; the UI polls step-by-step progress and offers retry. Nothing is saved unless the whole kit validates. |
-
-## Generated, edited and pinned state
-
-Questions and flashcards carry an optional `origin` (`generated` | `edited` | `manual`) and `pinned` flag (extensions to Appendix A). The **server** assigns provenance on every save by diffing against the stored kit, so the client cannot forget to mark an edit. Regenerating a question category deletes only items that are `generated` and not pinned in that category; edited, hand-written and pinned items are kept, and generation is told their prompts so it does not duplicate them. The schedule is reconciled afterwards (stale ids removed, new questions placed on the lightest day). Other categories, flashcards and the brief are never touched by a category regeneration.
-
-## Schedule allocation
-
-Pure code (`src/domain/schedule.ts`). Questions are sorted must-have first, then by difficulty (hard first), then id, and split into exactly `days` contiguous groups, so harder and higher-priority material lands earlier. Minutes per question are `15 + 10 × difficulty`. Schedule creation refuses to run if a must-have requirement is uncovered. Changing the day count re-allocates without touching questions.
-
-## Practice mode
-
-Flashcards are shown least-confident first (unrated = 0, then 1–5). Confidence is stored per flashcard on the server. The panel shows how many cards are covered, lists the uncovered ones, and cards can be edited, pinned, added and deleted.
-
-## Creative features
-
-Interview prep fails in a few predictable places: people do not know *where they are weak*, they never rehearse out loud under time pressure, and they lose track of which day of the plan they are on. Three small features address those directly, and all reuse data the kit already has.
-
-- **Readiness and weak spots.** Each requirement gets a readiness score from your own confidence ratings on the flashcards and questions linked to it (unrated counts as 0, must-haves count double). The overview shows an overall ring and the three weakest requirements, so the next hour of study is obvious instead of guessed.
-- **Mock interview mode.** A timed round over the questions you are weakest on: start the clock (the target is 2-3 minutes), jot an answer, peek at the outline only if you are stuck, then rate yourself. Ratings are saved per question and feed readiness.
-- **Today's plan.** The schedule follows the real calendar from the day the kit was created. The dashboard shows today's focus and how many days are left, and the schedule marks today.
-- **Printable one-pager** (below).
-
-## Creative feature: printable one-pager
-
-**Print one-pager** (top of every kit) turns the kit into a clean, print-styled document: company brief, how they hire, requirements marked must/nice, the day-by-day plan with the actual questions, the question bank by category with answer outlines, and flashcards with your confidence scores. Use the browser's *Save as PDF*.
-
-*Why:* interview prep happens away from a screen: on a commute, on paper, or in the last hour before the call. Everything the app builds is only useful if it can leave the app, and a one-page, offline copy of the plan with the questions already in it is what people actually carry into the day. It reuses the data already in the kit, so it needs no extra backend and never goes stale: it prints the current edited state.
-
-## Security
-
-Passwords are bcrypt-hashed; sessions are JWTs that are also stored hashed server-side so logout revokes them; every kit query is scoped to the owner. External URLs are validated before fetch (http/https only; private, loopback and link-local addresses rejected in production including after DNS resolution and redirects), responses are limited to text content types and 1 MB (truncated), and redirects are capped. Page text and job descriptions are passed to the model inside JSON with an explicit instruction that they are data, never instructions. Helmet, rate limits and strict CORS are on.
-
-## Running locally
+## Quick start
 
 ```bash
+git clone https://github.com/Sathvik2005/Trao--The-AI-Interview-Prep-Kit.git
+cd Trao--The-AI-Interview-Prep-Kit
 npm ci
-cp .env.example .env      # then fill in GEMINI_API_KEY and JWT_SECRET (32+ chars)
-npm run dev               # API on :3000, web on :5173
+cp .env.example .env     # set GEMINI_API_KEY and a JWT_SECRET of 32+ characters
+npm run dev              # API on :3000, web on :5173
 ```
 
-MongoDB is optional locally: leave `MONGODB_URI` empty to use the in-memory store (data is lost on restart).
+`MONGODB_URI` is optional locally: leave it empty and the app uses an in-memory store (data resets on restart). Get a free Gemini key at https://aistudio.google.com/apikey.
 
-### Tests
-
-```bash
-npm run typecheck
-npm test -- --run
-```
+| Command | Purpose |
+|---|---|
+| `npm run dev` | API and web together with reload |
+| `npm run build` | Typecheck and build the web bundle |
+| `npm test -- --run` | Run the test suite |
+| `npm run typecheck` | Type-check only |
+| `npm run evaluate -- --input <cases.json> --output <kits.json>` | Batch entry point |
+| `npm start` | Run the API (production) |
 
 ### Batch entry point
 
 ```bash
-npm run evaluate -- --input <cases.json> --output <kits.json>
+npm run evaluate -- --input cases.json --output kits.json
 ```
 
-Input is an array of `{ "id", "jd", "company_url", "days" }`; output is `{ version, generated_at, kits: [{ id, status, kit, error }] }`. Cases run with limited concurrency and a failure never aborts the run. `failed` is reserved for a case where no kit could be produced; partial research is `ok` with notes. Only `GEMINI_API_KEY` is required (see `.env.example`). The process exits non-zero if any case failed.
+Input: an array of `{ "id", "jd", "company_url", "days" }`. Output: `{ "version": "1.0", "generated_at", "kits": [{ "id", "status", "kit", "error" }] }`. Cases run with limited concurrency and one failing case never stops the run. `failed` is reserved for a case where no kit could be produced; a partly researched case is `ok` with its gaps recorded in `research_notes`. The command exits non-zero if any case failed. Only `GEMINI_API_KEY` is required, and company sites may be local addresses (relative links are followed). Verified from a fresh clone.
 
-## Deployment (free tiers)
-
-Frontend on Vercel, backend on Render, database on MongoDB Atlas. See `docs/DEPLOYMENT_RUNBOOK.md` for click-by-click steps.
+## Configuration
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `MONGODB_URI` | Render | Atlas connection string. Required in production. |
-| `MONGODB_DATABASE` | Render | Database name (default `interview_prep_kit`). |
-| `JWT_SECRET` | Render | Signs sessions; 32+ random characters (generated by `render.yaml`). |
-| `GEMINI_API_KEY` | Render | LLM access. Required in production. Never exposed to the browser. |
-| `GEMINI_MODEL` | Render | Model id (default `gemini-flash-lite-latest`). |
-| `FRONTEND_ORIGIN` | Render | Comma-separated allowed browser origins, e.g. the Vercel URL. |
-| `TEST_EMAIL`, `TEST_PASSWORD` | Render (optional) | Creates a reviewer login at boot (password 12+ chars). |
-| `DNS_SERVERS` | local (optional) | Override resolvers if your network blocks MongoDB SRV lookups. |
-| `GENERATION_RATE_LIMIT` | Render (optional) | Generations per user-IP per 15 minutes (default 30). |
-| `VITE_API_URL` | Vercel | Public URL of the Render API; baked into the frontend build. |
+| `GEMINI_API_KEY` | API, CLI | LLM access. Required in production. Never sent to the browser. |
+| `GEMINI_MODEL` | API, CLI | Primary model (default `gemini-flash-lite-latest`). |
+| `GEMINI_FALLBACK_MODELS` | API, CLI | Comma-separated fallbacks (default `gemini-3-flash-preview,gemini-3.1-flash-lite`). |
+| `GEMINI_CONCURRENCY` | API, CLI | Max in-flight model calls (default 2). |
+| `MONGODB_URI` | API | Atlas connection string. Required in production. |
+| `MONGODB_DATABASE` | API | Database name (default `interview_prep_kit`). |
+| `JWT_SECRET` | API | Signs sessions; 32+ random characters. |
+| `FRONTEND_ORIGIN` | API | Comma-separated browser origins allowed to call the API. |
+| `VITE_API_URL` | Web build | Public URL of the API, baked into the frontend build. |
+| `GENERATION_RATE_LIMIT` | API | Generations per IP per 15 minutes (default 30). |
+| `TEST_EMAIL`, `TEST_PASSWORD` | API | Optional reviewer login created at boot (12+ character password). |
+| `DNS_SERVERS` | API (local) | Override resolvers when a network blocks MongoDB SRV lookups. |
+| `NODE_ENV`, `PORT` | API | Standard. `production` enables strict address checks. |
 
-Render's free tier sleeps after idle time; the first request can take ~30–60 s. Call `/api/health` before a demo.
+## Documentation
 
-## Key design decisions and trade-offs
+| Document | What is in it |
+|---|---|
+| [Architecture](docs/ARCHITECTURE.md) | System context, components, data flow, state model, scaling |
+| [Pipeline](docs/PIPELINE.md) | Research and generation step by step, retries, coverage loop, schedule maths |
+| [API reference](docs/API.md) | Every endpoint, request, response and error |
+| [Data model](docs/DATA_MODEL.md) | Kit schema (with extensions), MongoDB collections, provenance |
+| [Security](docs/SECURITY.md) | Threat model and controls |
+| [Deployment runbook](docs/DEPLOYMENT_RUNBOOK.md) | Atlas, Render, Vercel, and the failures actually hit |
+| [Operations and handover](docs/OPERATIONS.md) | Running it, monitoring, secrets, costs, incident checklist |
+| [Development guide](docs/DEVELOPMENT.md) | Layout, conventions, testing, troubleshooting |
+| [Design decisions](docs/DECISIONS.md) | The choices and trade-offs, in decision-record form |
+| [Test report](docs/TEST_REPORT.md), [E2E report](docs/E2E_REPORT.md) | What was verified and how |
+| [Requirements traceability](docs/REQUIREMENTS_TRACEABILITY.md), [Known issues](docs/KNOWN_ISSUES.md) | Brief mapping; limitations |
 
-- **What the model may not decide.** Coverage and scheduling are plain code. The model writes text; code decides which requirement lacks a question, which day a question lands on, and whether the kit is valid. A model asked "is everything covered?" will say yes; a set difference will not.
-- **Nothing is invented.** Every extracted requirement must carry a verbatim quote from the description; code drops any candidate whose quote is not found. A two-line posting therefore yields a thin kit that says so, instead of padding.
-- **How many coverage passes: up to 3, then a template.** One pass is a single shot, which is what the brief wants to avoid. In practice a miss is almost always an omission by the model, and a targeted retry for only the missing requirements fixes it on the first try. A third attempt catches a flaky provider response. Beyond that the model is unlikely to succeed, and spending more tokens on a free tier risks the rate limit, so the loop stops and a plain template question is added with a note. The invariant that matters, no uncovered must-have ships, holds either way.
-- **The second pass can be run on demand.** If you delete the only question for a requirement, the overview shows the gap and **Close the gaps** re-runs exactly the generator's second pass for the missing requirements and increments `coverage.passes`. Deleting the only question for a must-have is refused with a clear message.
-- **Partial research is a result, not a failure.** An unreachable site, a missing hiring page or no public discussion is recorded in `research_notes` and the kit is still produced. `failed` is reserved for a case where no kit can be made at all.
-- **Provenance is assigned by the server.** The client never has to remember to mark an edit; the server diffs against the stored kit on every save. This keeps "edited" trustworthy and makes regeneration safe by construction.
-- **Jobs instead of a long request.** Generation takes 10-90 seconds and can fail halfway, so the API returns a job id and the UI shows each step. The trade-off is that progress lives in server memory, which is fine for one instance and noted as a limitation.
-- **One model chain, many guards.** Free-tier providers return 429/503 and retire models. Calls are capped process-wide, retried with backoff, fall back across models, and cool down a failing model. The trade-off is slightly higher latency on a bad day in exchange for kits that complete.
-- **Vite instead of Next.js.** Chosen for build speed and a simple static deploy, since the app has no need for server rendering.
-- **One repository.** The batch command and the web app must run the same pipeline, so they live together.
+## Project layout
+
+```
+src/
+  domain/      schema, validation, coverage, schedule, requirement grounding, reconcile and provenance (pure)
+  research/    company crawl, link ranking, robots.txt, address safety, public-discussion search
+  llm/         Gemini client (retry, fallback, cooldown) and the separately prompted generation steps
+  pipeline/    generateInterviewKit and regenerateSection
+  api/         Express routes, auth, background jobs, MongoDB and in-memory stores
+  cli/         batch entry point
+  web/         React UI
+test/          domain, pipeline, regeneration, API and batch tests
+docs/          documentation
+```
+
+## Quality
+
+- **28 automated tests** cover schedule allocation, coverage, schema validation, requirement grounding, regeneration preserving edits, research behaviour, the API and the batch contract.
+- **Live end-to-end** against Atlas, real Gemini, posthog.com and Hacker News: 28 of 28 checks pass, about 25 seconds per kit.
+- **Real-browser checks** (headless Chrome) against the deployed site: edit autosave, regeneration that keeps your edit, persistence after reload, mock round, print sheet, sign-out.
+- **Security:** private-address blocking with DNS and redirect checks, size and content-type limits, page text treated strictly as data, hashed passwords, revocable sessions, owner-scoped queries. `npm audit` on production dependencies reports 0 vulnerabilities.
 
 ## Known limitations
 
-- Job progress lives in server memory: a restart mid-generation loses the progress view (the kit is only saved when complete), and it assumes a single backend instance.
-- Public discussion comes from Hacker News only; companies rarely discussed there get an honest "nothing found" note.
-- The crawler reads server-rendered HTML; pages built entirely client-side yield little text.
-- `robots.txt` handling covers `User-agent: *` Disallow rules, not Crawl-delay or wildcards.
-- Question quality depends on a small free-tier model; categories are generated once per pass and spot-checked, not graded by a second model.
-- The session token is kept in `sessionStorage`, so an XSS bug would expose it; there is no per-user LLM cost budget beyond rate limits.
-- Vite + React replaces the preferred Next.js + Tailwind (justified above).
+Job progress lives in memory on one API instance; public discussion comes only from Hacker News; the crawler reads server-rendered HTML; the UI is a single large module that would be split as it grows; question quality depends on a free-tier model. The full list is in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
+
+## Author
+
+Built by Sathvik ([@Sathvik2005](https://github.com/Sathvik2005)). AI coding assistance was used throughout; every design decision above was reviewed and verified against running code.
