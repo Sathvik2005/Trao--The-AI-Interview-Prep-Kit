@@ -237,6 +237,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#content">Skip to content</a>
       <aside className="sidebar">
         <button className="brand" onClick={() => setSelected(null)} aria-label="Prep Kit home">
           <span className="brand-mark">P</span><span>prep<span className="brand-light">kit</span></span>
@@ -257,7 +258,7 @@ function App() {
       </aside>
       <main className="main-area">
         <header className="topbar"><span className="breadcrumb">Prep desk <span>/</span> {selectedKit ? selectedKit.kit.source.company : "My workspace"}</span><span className="topbar-date">{new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" }).format(new Date())}</span></header>
-        <div className="content-wrap">
+        <div className="content-wrap" id="content" tabIndex={-1}>
           {error && <div className="notice error-notice" role="alert"><span>{error}</span><button onClick={() => setError("")} aria-label="Dismiss error">×</button></div>}
           {notice && <div className="notice info-notice" role="status"><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss message">×</button></div>}
           {selectedKit ? <KitWorkspace

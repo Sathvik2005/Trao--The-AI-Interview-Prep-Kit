@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { setServers } from "node:dns";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import express from "express";
 import { MemoryStore } from "./api/memory-store.js";
@@ -43,7 +44,7 @@ if (testEmail && testPassword) {
 }
 
 const app = createApp({ store, jwtSecret, allowedOrigins: origins, production });
-if (production) {
+if (production && existsSync(join(process.cwd(), "dist", "index.html"))) {
   app.use(express.static(join(process.cwd(), "dist"), { index: false, maxAge: "1h" }));
   app.get(/^(?!\/api).*/, (_request, response) => response.sendFile(join(process.cwd(), "dist", "index.html")));
 }

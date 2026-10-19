@@ -1,9 +1,10 @@
 services:
+  # Backend API only. The frontend is deployed separately on Vercel (see vercel.json).
   - type: web
     name: trao-interview-prep-kit-api
     runtime: node
-    plan: starter
-    buildCommand: npm ci --include=dev && npm run build
+    plan: free
+    buildCommand: npm ci --include=dev
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -15,9 +16,15 @@ services:
         value: interview_prep_kit
       - key: JWT_SECRET
         generateValue: true
+      # Comma-separated browser origins allowed to call the API, e.g. https://your-app.vercel.app
       - key: FRONTEND_ORIGIN
         sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-3.1-flash-lite
+        value: gemini-flash-lite-latest
+      # Optional: creates a login for reviewers on first boot.
+      - key: TEST_EMAIL
+        sync: false
+      - key: TEST_PASSWORD
+        sync: false

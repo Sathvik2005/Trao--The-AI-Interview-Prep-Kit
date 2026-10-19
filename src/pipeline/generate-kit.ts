@@ -311,14 +311,25 @@ export async function generateInterviewKit(input: GenerateKitInput, dependencies
   const context: QuestionContext = { llm, company: research.company, brief: `${brief.summary} ${brief.what_they_do}`.trim(), hiringProcess: brief.hiring_process };
   const plan = planCategories(requirements, brief.hiring_process);
   emit({ step: "questions", label: "Generating questions by category", status: "running" });
+  const generateCategory = (category: Category) =>
+    questionsForCategory(category, plan[category], context, [], category === "company-fit" && plan[category].length === 0 ? 2 : undefined);
+  const failedCategories: Category[] = [];
   const categoryResults = await Promise.all(CATEGORIES.map(async (category) => {
     try {
-      return await questionsForCategory(category, plan[category], context, [], category === "company-fit" && plan[category].length === 0 ? 2 : undefined);
-    } catch (error) {
-      notes.push(`${category} questions could not be generated on the first pass (${error instanceof Error ? error.message : "error"}); coverage check will retry.`);
+      return await generateCategory(category);
+    } catch {
+      failedCategories.push(category);
       return [] as Question[];
     }
   }));
+  // One sequential retry of any category that failed while the provider was busy.
+  for (const category of failedCategories) {
+    try {
+      categoryResults[CATEGORIES.indexOf(category)] = await generateCategory(category);
+    } catch (error) {
+      notes.push(`${category} questions could not be generated (${error instanceof Error ? error.message : "error"}).`);
+    }
+  }
   const taken = new Set<string>();
   let questions: Question[] = categoryResults.flat().map((question) => ({ ...question, id: uniqueId("q", question.id, taken) }));
   emit({ step: "questions", label: "Generating questions by category", status: "done", detail: `${questions.length} question(s)` });

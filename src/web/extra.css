@@ -24,3 +24,27 @@
 .practice-summary{display:flex;flex-wrap:wrap;justify-content:space-between;gap:18px;margin-bottom:16px;border:1px solid var(--line);border-radius:4px;padding:14px;font-size:12px;color:#56635a;background:#fff}.practice-summary>div:first-child{min-width:200px;flex:1}.practice-summary details{font-size:11px;max-width:420px}.practice-summary summary{cursor:pointer}.practice-summary ul{margin:6px 0 0;padding-left:16px}
 .card-editor{margin-top:22px;font-size:11px}.card-editor summary{cursor:pointer;color:#52725f}.card-editor label{display:flex;flex-direction:column;gap:5px;margin-top:10px}.card-editor textarea{border:1px solid #dce3db;border-radius:4px;padding:8px;font-size:12px}.card-editor-actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
 @media(max-width:760px){.job-steps{grid-template-columns:1fr}.toolbar{gap:6px}.question-footer{flex-direction:column;align-items:flex-start}.save-state{display:none}}
+
+/* ---- motion and polish ---- */
+@keyframes rise-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pop-in{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+@keyframes shimmer{from{background-position:-200% 0}to{background-position:200% 0}}
+@keyframes flip-in{from{opacity:0;transform:rotateX(-14deg) translateY(6px)}to{opacity:1;transform:none}}
+.kit-card,.question-item,.job-card,.schedule-day,.requirement-row{animation:rise-in .4s ease both}
+.kit-grid>.kit-card:nth-child(2),.question-list>.question-item:nth-child(2),.schedule-list>.schedule-day:nth-child(2){animation-delay:.05s}
+.kit-grid>.kit-card:nth-child(3),.question-list>.question-item:nth-child(3),.schedule-list>.schedule-day:nth-child(3){animation-delay:.1s}
+.kit-grid>.kit-card:nth-child(n+4),.question-list>.question-item:nth-child(n+4),.schedule-list>.schedule-day:nth-child(n+4){animation-delay:.15s}
+.job-card{animation-name:pop-in}
+.job-card:not(.job-done):not(.job-failed){background:linear-gradient(100deg,#fff 30%,#f3f8f1 50%,#fff 70%);background-size:200% 100%;animation:pop-in .3s ease both,shimmer 2.6s linear infinite}
+.job-steps li{transition:color .3s}.step-dot{transition:background .3s,transform .3s}.step-done .step-dot{transform:scale(1.15)}
+.flashcard{animation:flip-in .35s ease both;perspective:800px}.flashcard.revealed{animation:flip-in .35s ease both}
+.coverage-track span{transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.primary-button:active:not(:disabled),.ghost-button:active:not(:disabled){transform:translateY(1px) scale(.99)}
+.ghost-button,.reorder-actions button,.confidence-buttons button,.kit-tabs button,.side-link{transition:background .18s,border-color .18s,color .18s,transform .18s}
+.confidence-buttons button:hover{transform:translateY(-2px)}
+.reorder-actions button:hover:not(:disabled){background:#eef4ee;border-color:#9cb4a1}
+.question-item{transition:border-color .2s,box-shadow .2s}.question-item:focus-within{border-color:#8fb09a;box-shadow:0 6px 18px rgba(37,60,46,.07)}
+.kit-tabs button.selected:after{animation:rise-in .25s ease both}
+.notice{animation:pop-in .25s ease both}
+.skip-link{position:absolute;left:-999px;top:8px;background:#315d4b;color:#fff;padding:8px 12px;border-radius:4px;z-index:20}.skip-link:focus{left:8px}
+@media(prefers-reduced-motion:reduce){.job-card:not(.job-done):not(.job-failed){background:#fff}}
