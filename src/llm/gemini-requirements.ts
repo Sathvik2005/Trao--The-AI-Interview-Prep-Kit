@@ -18,7 +18,7 @@ export async function extractRequirementsWithGemini(jobDescription: string): Pro
     throw new Error("GEMINI_API_KEY is required for requirement extraction.");
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetch(endpoint, {
     method: "POST",
@@ -44,7 +44,7 @@ export async function extractRequirementsWithGemini(jobDescription: string): Pro
       ],
       generationConfig: { responseMimeType: "application/json", temperature: 0 },
     }),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(90_000),
   });
 
   if (!response.ok) {
@@ -68,5 +68,9 @@ export async function extractRequirementsWithGemini(jobDescription: string): Pro
     throw new Error("Gemini returned invalid JSON for requirement extraction.");
   }
   const extraction = providerResponseSchema.parse(parsed);
-  return buildRequirements(extraction.candidates, jobDescription);
+  const normalize = (value: string) => value.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  const description = normalize(jobDescription);
+  // Drop candidates the model could not quote verbatim: they are invented, not extracted.
+  const grounded = extraction.candidates.filter((candidate) => description.includes(normalize(candidate.source_quote)));
+  return buildRequirements(grounded, jobDescription);
 }

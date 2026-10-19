@@ -4,7 +4,7 @@ import { join } from "node:path";
 import express from "express";
 import { MemoryStore } from "./api/memory-store.js";
 import { MongoStore, type DatabaseStore } from "./api/store.js";
-import { createApp } from "./api/app.js";
+import { createApp, ensureSeedUser } from "./api/app.js";
 
 if (process.env.DNS_SERVERS) setServers(process.env.DNS_SERVERS.split(",").map((server) => server.trim()).filter(Boolean));
 
@@ -31,6 +31,16 @@ try {
   store = new MemoryStore();
   await store.initialize();
 }
+
+const testEmail = process.env.TEST_EMAIL?.trim().toLowerCase();
+const testPassword = process.env.TEST_PASSWORD?.trim();
+if (testEmail && testPassword) {
+  const seededUser = await ensureSeedUser(store, testEmail, testPassword);
+  if (seededUser) {
+    console.log(`Seeded demo account for ${seededUser.email}.`);
+  }
+}
+
 const app = createApp({ store, jwtSecret, allowedOrigins: origins, production });
 if (production) {
   app.use(express.static(join(process.cwd(), "dist"), { index: false, maxAge: "1h" }));

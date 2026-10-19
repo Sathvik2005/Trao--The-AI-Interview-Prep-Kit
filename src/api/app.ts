@@ -53,6 +53,23 @@ function toPublicUser(user: UserRecord): { id: string; email: string; created_at
   return { id: user.id, email: user.email, created_at: user.created_at };
 }
 
+export async function ensureSeedUser(store: DatabaseStore, email: string, password: string): Promise<UserRecord | null> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPassword = password.trim();
+
+  if (!normalizedEmail || !normalizedPassword || normalizedPassword.length < 12) {
+    return null;
+  }
+
+  const existingUser = await store.findUserByEmail(normalizedEmail);
+  if (existingUser) {
+    return existingUser;
+  }
+
+  const passwordHash = await bcrypt.hash(normalizedPassword, 12);
+  return store.createUser(normalizedEmail, passwordHash);
+}
+
 function errorResponse(response: Response, status: number, code: string, message: string): void {
   response.status(status).json({ error: { code, message } });
 }
@@ -117,7 +134,7 @@ export function createApp(options: AppOptions): express.Express {
   });
 
   const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: "draft-8", legacyHeaders: false });
-  const generationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: "draft-8", legacyHeaders: false });
+  const generationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.GENERATION_RATE_LIMIT || 5), standardHeaders: "draft-8", legacyHeaders: false });
   const generation = options.generateKit ?? generateInterviewKit;
   const requireUser = (request: Request, response: Response, next: NextFunction) => {
     void authenticate(request as AuthenticatedRequest, response, next, options);

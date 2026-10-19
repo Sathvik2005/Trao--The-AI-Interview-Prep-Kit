@@ -11,7 +11,7 @@ Turns a job description plus a company website into a personalised interview pre
 | Frontend | React 19 + Vite (plain CSS) | **Deviation from Next.js + Tailwind.** The app is a single authenticated SPA with no SEO or SSR need, so Vite keeps the build small. |
 | Backend | Node.js + Express 5, TypeScript | As suggested. |
 | Database | MongoDB | As suggested. Stores users, sessions and kits. |
-| LLM | Google Gemini, `gemini-2.5-flash` (configurable) | Genuine free tier; JSON response mode. |
+| LLM | Google Gemini, `gemini-3.1-flash-lite` (configurable) | Genuine free tier; JSON response mode. |
 | Validation | zod | One schema serves request validation, LLM output validation and kit validation. |
 | Tests | vitest + supertest | |
 
@@ -145,7 +145,7 @@ npm run typecheck
 | `JWT_SECRET` | Session signing key, at least 32 random characters |
 | `FRONTEND_ORIGIN` | Comma-separated allowed CORS origins |
 | `GEMINI_API_KEY` | Gemini key (free from Google AI Studio) |
-| `GEMINI_MODEL` | Defaults to `gemini-2.5-flash` |
+| `GEMINI_MODEL` | Defaults to `gemini-3.1-flash-lite` |
 
 If `GEMINI_API_KEY` is unset the pipeline falls back to a few hard-coded keyword patterns (React, TypeScript, mentoring, product design). That fallback exists for offline tests and is **not** a real extractor.
 

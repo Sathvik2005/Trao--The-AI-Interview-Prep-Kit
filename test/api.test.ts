@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { InterviewKit } from "../src/domain/kit-schema.js";
-import { createApp } from "../src/api/app.js";
+import { createApp, ensureSeedUser } from "../src/api/app.js";
 import { MemoryStore } from "../src/api/memory-store.js";
 import { hashJwtToken } from "../src/api/store.js";
 
@@ -40,6 +40,21 @@ describe("authenticated kit API", () => {
     const health = await request(app).get("/api/health");
     expect(health.status).toBe(200);
     expect(health.body).toEqual({ status: "ok", persistence: "memory" });
+  });
+
+  it("supports a seeded demo account from environment credentials", async () => {
+    const store = new MemoryStore();
+    const app = createApp({ store, jwtSecret: "a-test-secret-that-is-at-least-thirty-two-characters", generateKit: async () => validKit() });
+    const email = "demo@interview-prep.local";
+    const password = "DemoPassword123!";
+
+    const user = await ensureSeedUser(store, email, password);
+    expect(user?.email).toBe(email);
+
+    const login = await request(app).post("/api/auth/login").send({ email, password });
+    expect(login.status).toBe(200);
+    expect(login.body.user.email).toBe(email);
+    expect(login.body.token.split(".")).toHaveLength(3);
   });
 
   it("requires a JWT, validates saved kits, and keeps resources private to their owner", async () => {
