@@ -28,6 +28,15 @@ let store: DatabaseStore = mongoUri ? new MongoStore(mongoUri, process.env.MONGO
 try {
   await store.initialize();
 } catch (error) {
+  if (production && mongoUri) {
+    console.error([
+      "FATAL: could not connect to MongoDB Atlas.",
+      `Reason: ${error instanceof Error ? error.message.split("\n")[0].slice(0, 200) : String(error)}`,
+      "Check, in order: (1) Atlas > Network Access contains 0.0.0.0/0 and is Active, (2) the cluster is not paused,",
+      "(3) MONGODB_URI has the real password (URL-encode special characters), (4) NODE_VERSION is 22 on Render.",
+    ].join("\n"));
+    process.exit(1);
+  }
   if (production || !mongoUri) throw error;
   console.warn(`MongoDB unreachable (${error instanceof Error ? error.message : error}): falling back to the in-memory store for development.`);
   store = new MemoryStore();
