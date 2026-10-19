@@ -6,6 +6,7 @@ export class MemoryStore implements DatabaseStore {
   users: UserRecord[] = [];
   sessions: SessionRecord[] = [];
   kits: SavedKit[] = [];
+  storageMode(): "memory" { return "memory"; }
   async initialize() {}
   async close() {}
   async healthCheck() { return true; }

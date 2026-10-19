@@ -35,6 +35,13 @@ async function register(app: ReturnType<typeof createApp>, email: string) {
 }
 
 describe("authenticated kit API", () => {
+  it("reports ephemeral memory persistence honestly in its health response", async () => {
+    const { app } = setup();
+    const health = await request(app).get("/api/health");
+    expect(health.status).toBe(200);
+    expect(health.body).toEqual({ status: "ok", persistence: "memory" });
+  });
+
   it("requires a JWT, validates saved kits, and keeps resources private to their owner", async () => {
     const { app } = setup();
     expect((await request(app).get("/api/kits")).status).toBe(401);

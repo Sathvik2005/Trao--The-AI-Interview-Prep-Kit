@@ -26,6 +26,7 @@ export interface SavedKit {
 }
 
 export interface DatabaseStore {
+  storageMode(): "memory" | "mongodb";
   initialize(): Promise<void>;
   close(): Promise<void>;
   healthCheck(): Promise<boolean>;
@@ -97,6 +98,10 @@ export class MongoStore implements DatabaseStore {
   }
 
   private readonly databaseName?: string;
+
+  storageMode(): "mongodb" {
+    return "mongodb";
+  }
 
   async initialize(): Promise<void> {
     await this.client.connect();

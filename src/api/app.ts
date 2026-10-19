@@ -125,7 +125,10 @@ export function createApp(options: AppOptions): express.Express {
 
   app.get("/api/health", async (_request, response) => {
     const healthy = await options.store.healthCheck();
-    response.status(healthy ? 200 : 503).json({ status: healthy ? "ok" : "unavailable", database: healthy ? "connected" : "unavailable" });
+    response.status(healthy ? 200 : 503).json({
+      status: healthy ? "ok" : "unavailable",
+      persistence: healthy ? options.store.storageMode() : "unavailable",
+    });
   });
 
   app.post("/api/auth/register", authLimiter, async (request, response, next) => {

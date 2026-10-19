@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 import { z } from "zod";
 import { analyzeCoverage } from "../domain/coverage.js";
 import { type InterviewKit, validateKit } from "../domain/kit-schema.js";
@@ -36,6 +37,7 @@ function inferCompanyName(companyUrl: string): string {
   try {
     const parsed = new URL(companyUrl);
     const host = parsed.hostname.replace(/^www\./i, "");
+    if (isIP(host.replace(/^\[|\]$/g, ""))) return "Company";
     const withoutTld = host.split(".").filter(Boolean);
     return withoutTld.length > 0 ? withoutTld[0].replace(/[-_]/g, " ") : "Company";
   } catch {
@@ -45,21 +47,23 @@ function inferCompanyName(companyUrl: string): string {
 
 function inferRoleDetails(jobDescription: string): { title: string; seniority: string; location: string; responsibilities: string[] } {
   const normalized = normalizeWhitespace(jobDescription);
-  const roleMatch = normalized.match(/(?:Senior|Staff|Principal|Lead|Junior|Mid|Engineer|Developer|Architect|Manager|Analyst)[^\n]{0,80}/i) ?? normalized.match(/[A-Z][A-Za-z+\- ]{2,60}(?: Engineer| Developer| Analyst| Manager)/i);
+  const roleMatch = normalized.match(/\b((?:(?:Senior|Staff|Principal|Lead|Junior|Mid|Associate|Entry[- ]level)\s+)?(?:(?:[A-Z][A-Za-z0-9+#./-]*|of|and|for)\s+){0,3}(?:Engineer|Developer|Architect|Manager|Analyst|Designer|Scientist|Consultant|Specialist|Researcher))\b/i);
   const seniorityMatch = normalized.match(/\b(Senior|Staff|Principal|Lead|Junior|Mid)\b/i);
-  const locationMatch = normalized.match(/\b(Remote|Hybrid|On-site|[A-Z][a-z]+(?:,\s*[A-Z][a-z]+)?)\b/i);
-  const responsibilities = dedupe(
-    (normalized.match(/(?:Responsibilities|You will|Responsibilities include|Key responsibilities)[\s\S]{0,250}/i)?.[0] ?? normalized)
-      .split(/\s*[,;\n]\s*/)
+  const locationMatch = normalized.match(/\b(Remote|Hybrid|On[- ]site)\b/i)
+    ?? normalized.match(/\b(?:Location|based in|located in)\s*[:\-]?\s*([A-Z][A-Za-z .'-]{1,50}(?:,\s*[A-Z][A-Za-z .'-]{1,50})?)/i);
+  const responsibilityBlock = normalized.match(/(?:Responsibilities|You will|Responsibilities include|Key responsibilities)\s*[:\-]?\s*(.*?)(?=(?:Requirements|Qualifications|What you(?:'|’)ll need|Preferred|Benefits)\s*[:\-]|$)/i)?.[1];
+  const responsibilities = responsibilityBlock ? dedupe(
+    responsibilityBlock
+      .split(/\s*[,;.]\s*/)
       .filter((piece) => piece.length > 3)
       .slice(0, 5),
-  );
+  ) : [];
 
   return {
-    title: roleMatch ? normalizeWhitespace(roleMatch[0]) : "Engineer",
+    title: roleMatch ? normalizeWhitespace(roleMatch[1]) : "Engineer",
     seniority: seniorityMatch ? seniorityMatch[0] : "",
-    location: locationMatch ? normalizeWhitespace(locationMatch[0]) : "",
-    responsibilities: responsibilities.length > 0 ? responsibilities : ["Deliver high-quality technical work for the role."],
+    location: locationMatch ? normalizeWhitespace(locationMatch[1] ?? locationMatch[0]) : "",
+    responsibilities,
   };
 }
 

@@ -75,7 +75,7 @@ The loop runs at most **two passes**: the first draft, then one repair pass for 
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/health` | Liveness and database status |
+| GET | `/api/health` | Liveness and active persistence mode (`memory` or `mongodb`) |
 | POST | `/api/auth/register`, `/api/auth/login` | Create account / sign in |
 | POST | `/api/auth/logout` | Invalidate the session |
 | GET | `/api/auth/me` | Current user |
@@ -121,11 +121,11 @@ Flashcards are shown one at a time with reveal. The user rates confidence 1-5 pe
 
 Requires Node 20+. Docker is **not** required. Pick one database option:
 
-**A. No database (quickest).** Leave `MONGODB_URI` empty in `.env`. The API uses an in-memory store; accounts and kits are lost on restart. Not allowed when `NODE_ENV=production`.
+**A. No database (quickest, default).** Leave `MONGODB_URI` empty in `.env` (the checked-in `.env.example` does this). The API uses an in-memory store; accounts and kits are lost on restart. Not allowed when `NODE_ENV=production`.
 
 **B. MongoDB without Docker.** Use a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster, or a locally installed `mongod`, and set `MONGODB_URI` to its connection string.
 
-**C. MongoDB with Docker (optional).** `docker compose up -d` starts MongoDB on `127.0.0.1:27017`, matching the default `MONGODB_URI` in `.env.example`.
+**C. MongoDB with Docker (optional).** `docker compose up -d mongo` starts MongoDB on `127.0.0.1:27017`; set `MONGODB_URI=mongodb://127.0.0.1:27017/interview_prep_kit` in `.env`.
 
 ```bash
 npm install
@@ -155,11 +155,11 @@ If `GEMINI_API_KEY` is unset the pipeline falls back to a few hard-coded keyword
 npm run evaluate -- --input cases.json --output kits.json
 ```
 
-`cases.json` is an array of `{ "id", "jd", "company_url", "days" }`. The output is `{ version, generated_at, kits: [{ id, status: "ok" | "failed", kit, error }], failed_cases }`. A failing case is recorded and the run continues; two cases run concurrently. See `test/fixtures/evaluate-cases.json` for an example.
+`cases.json` is an array of `{ "id", "jd", "company_url", "days" }`. The output is `{ version: "1.0", generated_at, kits: [{ id, status: "ok" | "failed", kit, error }] }`. A failing case is recorded and the run continues; two cases run concurrently. The CLI exits nonzero if any case failed. See `test/fixtures/evaluate-cases.json` for an example.
 
 ## Deployment
 
-Not deployed yet. Plan: API on a free Node host, web on a static host, MongoDB Atlas free tier, with the variables above set in the host's secret store.
+Not deployed yet. The included configuration targets Vercel for the static Vite frontend, Render for the persistent Node API, and MongoDB Atlas for durable storage. Set `VITE_API_URL` on Vercel and `MONGODB_URI`, `JWT_SECRET`, `FRONTEND_ORIGIN` and optional Gemini credentials on Render. Follow `docs/DEPLOYMENT_RUNBOOK.md`; no public deployment URL has been verified.
 
 ## Known limitations
 
