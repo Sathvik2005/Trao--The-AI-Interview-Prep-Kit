@@ -61,3 +61,27 @@
   .print-meta{color:#555;margin:0 0 8pt}.print-q{break-inside:avoid;margin-bottom:6pt}.print-q p{margin:0 0 2pt}
   .print-only li{break-inside:avoid}
 }
+
+/* ---- v2: readiness, mock interview, today, polish ---- */
+.heading-count strong,.coverage-number,.coverage-stat strong,.day-time,.ring span{font-variant-numeric:lining-nums tabular-nums}
+.ghost-button{text-transform:none}.toolbar .ghost-button{text-transform:capitalize}
+input[type=file]{font-size:11px;color:#66736a}input[type=file]::file-selector-button{margin-right:10px;border:1px solid #d7e0d6;border-radius:4px;background:#fff;color:#386653;padding:7px 12px;font:600 11px 'DM Sans',sans-serif;cursor:pointer}input[type=file]::file-selector-button:hover{border-color:#8fb09a;background:#f1f7f2}
+.skeleton{min-height:128px;gap:10px;animation:none;background:linear-gradient(100deg,#fff 30%,#eef3ec 50%,#fff 70%);background-size:200% 100%;animation:shimmer 1.6s linear infinite;cursor:default}.skeleton span{display:block;height:11px;border-radius:3px;background:#e4eae3}.skeleton span:nth-child(1){width:35%}.skeleton span:nth-child(2){width:80%;height:16px}.skeleton span:nth-child(3){width:55%}
+.today-strip{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:26px;border:1px solid #cfe0d2;border-left:4px solid #48745c;border-radius:5px;padding:16px 18px;background:#f4faf5;animation:rise-in .4s ease both}.today-strip>div{display:flex;flex-direction:column;gap:4px;min-width:0}.today-label{color:#5e8670;font:9px var(--mono)}.today-strip strong{font:500 18px var(--serif)}.today-strip small{color:#7a877d;font-size:11px}
+.readiness-section{margin-top:36px;animation:rise-in .45s ease both}
+.readiness-grid{display:grid;grid-template-columns:130px minmax(0,1fr);gap:26px;align-items:center;border-top:1px solid var(--line);padding-top:18px}
+.ring{width:118px;height:118px;display:grid;place-items:center;border-radius:50%;position:relative;transition:background .6s}.ring:before{content:'';position:absolute;inset:11px;border-radius:50%;background:var(--paper)}.ring span{position:relative;color:#315d4b;font:500 34px var(--serif)}.ring small{font-size:16px;color:#7a9a83}
+.weak-help{margin:0 0 12px;color:#7d887f;font-size:11px;line-height:1.6}.weak-row{margin-bottom:12px;font-size:12px;color:#435047}.weak-row small{color:#8a958c;font:9px var(--mono)}.weak-bar{height:5px;margin:6px 0 4px;border-radius:5px;background:#e2e8e1;overflow:hidden}.weak-bar span{display:block;height:100%;background:#df966b;border-radius:inherit;transition:width .6s}
+.mock-layout{max-width:720px;margin:0 auto;animation:rise-in .35s ease both}.mock-progress{height:4px;margin-bottom:16px;border-radius:4px;background:#e2e8e1;overflow:hidden}.mock-progress span{display:block;height:100%;background:#48745c;transition:width .4s}
+.mock-meta{display:flex;align-items:center;gap:12px;color:#79857c;font:10px var(--mono)}.mock-timer{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;color:#315d4b;font:500 24px var(--serif);font-variant-numeric:tabular-nums}.mock-timer small{color:#9aa49c;font:8px var(--mono)}.mock-timer.over{color:#c5543a}
+.mock-prompt{margin:22px 0;font:500 clamp(21px,3vw,28px)/1.45 var(--serif);color:#29483b}.mock-controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.mock-notes{display:flex;flex-direction:column;gap:6px;color:#66746a;font-size:11px}.mock-notes textarea{border:1px solid #dce3db;border-radius:5px;padding:12px;font:13px/1.55 'DM Sans',sans-serif;resize:vertical;background:#fff}
+.mock-outline{margin-top:12px;border-left:3px solid #dfac52;background:#fbf7ec;padding:10px 14px;animation:pop-in .25s ease both}.mock-outline span{color:#8b6d38;font:9px var(--mono)}.mock-outline p{margin:5px 0 0;font-size:12px;line-height:1.6;color:#5c533c}
+.mock-done{max-width:520px;margin:30px auto;text-align:center;animation:pop-in .35s ease both}.mock-done h3{margin:0 0 8px;font:500 28px var(--serif)}.mock-done p{color:#6f7c73;font-size:13px}.mock-done .primary-button{margin-top:14px}
+.schedule-day.today{border-left:3px solid #48745c;background:linear-gradient(90deg,rgba(72,116,92,.07),transparent 60%)}.today-badge{margin-left:10px;border-radius:3px;padding:3px 7px;background:#48745c;color:#fff;font:600 9px var(--mono);text-transform:uppercase;vertical-align:middle}
+@media(max-width:760px){.readiness-grid{grid-template-columns:1fr;justify-items:center}.weak-list{width:100%}.today-strip{flex-direction:column;align-items:flex-start}.mock-meta{flex-wrap:wrap}}
+
+.brief-summary{font-size:18px;line-height:1.55}
+
+.question-item textarea{overflow:hidden;resize:none}
+@media(max-width:760px){.file-label{flex-direction:column!important;align-items:flex-start!important}.batch-row{flex-direction:column;align-items:flex-start}.toolbar .ghost-button{flex:1 1 auto}}

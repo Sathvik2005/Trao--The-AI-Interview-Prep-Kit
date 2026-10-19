@@ -41,7 +41,7 @@ export class MemoryStore implements DatabaseStore {
     return this.kits.length !== originalLength;
   }
   async updatePractice(user_id: string, kit_id: string, flashcard_id: string, confidence: number) {
-    const record = this.kits.find((item) => item.id === kit_id && item.user_id === user_id && item.kit.flashcards.some((card) => card.id === flashcard_id));
+    const record = this.kits.find((item) => item.id === kit_id && item.user_id === user_id && (item.kit.flashcards.some((card) => card.id === flashcard_id) || item.kit.questions.some((question) => question.id === flashcard_id)));
     if (!record) return null;
     record.practice[flashcard_id] = confidence;
     return record;

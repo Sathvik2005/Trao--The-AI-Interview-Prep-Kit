@@ -19,3 +19,6 @@
 - API: authentication, ownership isolation, session revocation, de-duplication, provenance on save.
 
 The live e2e script exercises login, a signed-out request, a full generation with progress, de-duplication, an edit, a category regeneration, a schedule rebuild, practice confidence, an unreachable company site and a two-line description.
+
+## Browser check (headless Chrome against the real UI)
+15 of 15 pass: dashboard and today's plan, skip link first in tab order, unsaved state then autosave, edited badge, add a question, category regeneration keeps the edit and the hand-added question, persistence after reload, mock timer, outline reveal, rating advances, readiness ring, print sheet contains the edit, sign-out.

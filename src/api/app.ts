@@ -166,6 +166,16 @@ export function createApp(options: AppOptions): express.Express {
     void authenticate(request as AuthenticatedRequest, response, next, options);
   };
 
+  app.get("/", (_request, response) => {
+    response.json({
+      service: "AI Interview Prep Kit API",
+      status: "ok",
+      health: "/api/health",
+      note: "This is the backend API. The web app is served separately.",
+      app: options.allowedOrigins?.[0] ?? null,
+    });
+  });
+
   app.get("/api/health", async (_request, response) => {
     const healthy = await options.store.healthCheck();
     response.status(healthy ? 200 : 503).json({

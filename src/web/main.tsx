@@ -6,7 +6,7 @@ import "./extra.css";
 
 type User = { id: string; email: string; created_at: string };
 type SavedKit = { id: string; kit: InterviewKit; practice: Record<string, number>; created_at: string; updated_at: string };
-type View = "overview" | "questions" | "practice" | "schedule";
+type View = "overview" | "questions" | "practice" | "mock" | "schedule";
 type Question = InterviewKit["questions"][number];
 type Flashcard = InterviewKit["flashcards"][number];
 type Category = Question["category"];
@@ -57,6 +57,17 @@ function hostLabel(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
+function sourceLabel(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "news.ycombinator.com") return `Hacker News #${parsed.searchParams.get("id") ?? ""}`;
+    const path = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/$/, "").slice(0, 26);
+    return `${parsed.hostname.replace(/^www\./, "")}${path}`;
+  } catch { return url; }
+}
+
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+
 function uncoveredIds(kit: InterviewKit): string[] {
   const covered = new Set(kit.questions.flatMap((question) => question.requirement_ids));
   return kit.role.requirements.filter((requirement) => !covered.has(requirement.id)).map((requirement) => requirement.id);
@@ -74,6 +85,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [jobs, setJobs] = useState<JobView[]>([]);
   const [saving, setSaving] = useState(false);
+  const [kitsLoading, setKitsLoading] = useState(false);
   const tokenRef = useRef(token);
   tokenRef.current = token;
 
@@ -95,6 +107,7 @@ function App() {
       return;
     }
     setLoading(true);
+    setKitsLoading(true);
     Promise.all([
       api<{ user: User }>("/api/auth/me", token),
       api<{ kits: SavedKit[] }>("/api/kits", token),
@@ -105,7 +118,7 @@ function App() {
     }).catch((reason: unknown) => {
       if (reason instanceof ApiError && reason.status === 401) expireSession();
       else setError(reason instanceof Error ? reason.message : "Could not load your workspace.");
-    }).finally(() => setLoading(false));
+    }).finally(() => { setLoading(false); setKitsLoading(false); });
   }, [token]);
 
   function guard(reason: unknown, fallback: string): string {
@@ -250,6 +263,7 @@ function App() {
           <button className={`side-link ${view === "questions" ? "active" : ""}`} onClick={() => setView("questions")}><span className="nav-glyph">☷</span> Question bank</button>
           <button className={`side-link ${view === "practice" ? "active" : ""}`} onClick={() => setView("practice")}><span className="nav-glyph">▣</span> Flashcard practice</button>
           <button className={`side-link ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}><span className="nav-glyph">▦</span> Study schedule</button>
+          <button className={`side-link ${view === "mock" ? "active" : ""}`} onClick={() => setView("mock")}><span className="nav-glyph">◔</span> Mock interview</button>
         </>}
         <div className="sidebar-bottom">
           <div className="account-chip"><span className="avatar">{user.email.slice(0, 1).toUpperCase()}</span><span className="account-email">{user.email}</span></div>
@@ -273,6 +287,7 @@ function App() {
             onDelete={removeKit}
           /> : <Dashboard
             kits={kits}
+            loadingKits={kitsLoading}
             jobs={jobs}
             onCreate={(jd, url, days) => runJob(hostLabel(url), { jd, company_url: url, days })}
             onBatch={async (items) => { for (const item of items) await runJob(hostLabel(item.company_url), item); }}
@@ -349,8 +364,9 @@ function JobCard({ entry, onRetry, onDismiss, onOpen }: { entry: JobView; onRetr
   </article>;
 }
 
-function Dashboard({ kits, jobs, onCreate, onBatch, onRetry, onDismiss, onOpen, onError }: {
+function Dashboard({ kits, loadingKits, jobs, onCreate, onBatch, onRetry, onDismiss, onOpen, onError }: {
   kits: SavedKit[];
+  loadingKits: boolean;
   jobs: JobView[];
   onCreate: (jd: string, companyUrl: string, days: number) => Promise<void>;
   onBatch: (items: Array<{ jd: string; company_url: string; days: number }>) => Promise<void>;
@@ -396,10 +412,99 @@ function Dashboard({ kits, jobs, onCreate, onBatch, onRetry, onDismiss, onOpen, 
       </form>
     </section>
     {jobs.length > 0 && <section className="jobs-section" aria-label="Kits being built">{jobs.map((entry) => <JobCard key={entry.key} entry={entry} onRetry={() => onRetry(entry)} onDismiss={() => onDismiss(entry.key)} onOpen={onOpen} />)}</section>}
+    {(() => {
+      const active = kits.map((saved) => ({ saved, progress: dayProgress(saved, saved.kit.schedule.days_available) })).find((item) => !item.progress.finished);
+      if (!active) return null;
+      const day = active.saved.kit.schedule.days.find((entry) => entry.day === active.progress.today);
+      return <section className="today-strip" aria-label="Today's plan"><div><span className="today-label">TODAY · DAY {active.progress.today} OF {active.saved.kit.schedule.days_available}</span><strong>{active.saved.kit.source.company}: {day?.focus ?? "Review"}</strong><small>{day ? `${day.question_ids.length} question${day.question_ids.length === 1 ? "" : "s"} · about ${day.minutes} min` : ""} · {active.progress.daysLeft} day{active.progress.daysLeft === 1 ? "" : "s"} left after today</small></div><button className="primary-button small" onClick={() => onOpen(active.saved.id)}>Open plan <span aria-hidden="true">↗</span></button></section>;
+    })()}
     <section className="kits-section"><div className="section-heading"><div><span className="section-number">02</span><h2>Recent kits</h2></div><span className="section-side-note">{kits.length ? `${kits.length} PREPARATION${kits.length === 1 ? "" : "S"}` : "YOUR LIBRARY"}</span></div>
-      {kits.length ? <div className="kit-grid">{kits.map((saved) => <button className="kit-card" key={saved.id} onClick={() => onOpen(saved.id)}><div className="kit-card-top"><span className="company-initial">{saved.kit.source.company.slice(0, 1).toUpperCase()}</span><span className="card-arrow">↗</span></div><p className="company-name">{saved.kit.source.company}</p><h3>{saved.kit.role.title}</h3><div className="kit-card-bottom"><span>{saved.kit.schedule.days_available} days</span><span>{saved.kit.role.requirements.length} role signals</span><span className="card-date">{new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(saved.updated_at))}</span></div></button>)}</div> : <div className="empty-library"><span className="empty-symbol">↗</span><div><strong>Your library starts here.</strong><p>Build your first kit above; it’ll be ready to return to whenever you are.</p></div></div>}
+      {loadingKits && !kits.length ? <div className="kit-grid" aria-busy="true">{[0, 1, 2].map((item) => <div className="kit-card skeleton" key={item}><span /><span /><span /></div>)}</div> : kits.length ? <div className="kit-grid">{kits.map((saved) => <button className="kit-card" key={saved.id} onClick={() => onOpen(saved.id)}><div className="kit-card-top"><span className="company-initial">{saved.kit.source.company.slice(0, 1).toUpperCase()}</span><span className="card-arrow">↗</span></div><p className="company-name">{saved.kit.source.company}</p><h3>{saved.kit.role.title}</h3><div className="kit-card-bottom"><span>{plural(saved.kit.schedule.days_available, "day")}</span><span>{plural(saved.kit.role.requirements.length, "role signal")}</span><span className="card-date">{new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(saved.updated_at))}</span></div></button>)}</div> : <div className="empty-library"><span className="empty-symbol">↗</span><div><strong>Your library starts here.</strong><p>Build your first kit above; it’ll be ready to return to whenever you are.</p></div></div>}
     </section>
   </>;
+}
+
+/** A textarea that grows to fit its content, so long questions are never clipped. */
+function AutoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight + 2}px`;
+  }, [props.value]);
+  return <textarea ref={ref} {...props} />;
+}
+
+type ReadinessRow = { req: InterviewKit["role"]["requirements"][number]; score: number; rated: number; total: number };
+
+/** Readiness per requirement: average self-rating of every card and question linked to it (unrated counts as 0). */
+function computeReadiness(kit: InterviewKit, practice: Record<string, number>): { rows: ReadinessRow[]; overall: number } {
+  const rows = kit.role.requirements.map((req) => {
+    const ids = [...kit.flashcards.filter((card) => card.requirement_ids.includes(req.id)).map((card) => card.id), ...kit.questions.filter((question) => question.requirement_ids.includes(req.id)).map((question) => question.id)];
+    const ratings = ids.map((id) => practice[id]).filter(Boolean);
+    return { req, score: ids.length ? ratings.reduce((sum, value) => sum + value, 0) / (ids.length * 5) : 0, rated: ratings.length, total: ids.length };
+  });
+  const weight = (row: ReadinessRow) => (row.req.priority === "must" ? 2 : 1);
+  const totalWeight = rows.reduce((sum, row) => sum + weight(row), 0);
+  return { rows, overall: totalWeight ? Math.round((100 * rows.reduce((sum, row) => sum + row.score * weight(row), 0)) / totalWeight) : 0 };
+}
+
+function dayProgress(saved: { created_at: string }, totalDays: number): { today: number; daysLeft: number; finished: boolean } {
+  const elapsed = Math.max(0, Math.floor((Date.now() - Date.parse(saved.created_at)) / 86_400_000));
+  return { today: Math.min(totalDays, elapsed + 1), daysLeft: Math.max(0, totalDays - elapsed - 1), finished: elapsed >= totalDays };
+}
+
+function formatClock(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/** Timed mock interview: weakest questions first, think aloud against the clock, then rate yourself. */
+function MockInterview({ kit, practice, onRate }: { kit: InterviewKit; practice: Record<string, number>; onRate: (id: string, rating: number) => Promise<void> }) {
+  const [queue, setQueue] = useState<Question[]>(() => [...kit.questions].sort((left, right) => (practice[left.id] ?? 0) - (practice[right.id] ?? 0)).slice(0, 8));
+  const [index, setIndex] = useState(0);
+  const [seconds, setSeconds] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [showOutline, setShowOutline] = useState(false);
+  const [session, setSession] = useState<number[]>([]);
+  const question = queue[index];
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
+    return () => clearInterval(timer);
+  }, [running]);
+
+  function restart() {
+    setQueue([...kit.questions].sort((left, right) => (practice[left.id] ?? 0) - (practice[right.id] ?? 0)).slice(0, 8));
+    setIndex(0); setSeconds(0); setRunning(false); setNotes(""); setShowOutline(false); setSession([]);
+  }
+
+  function rate(rating: number) {
+    void onRate(question.id, rating);
+    setSession((current) => [...current, rating]);
+    setIndex((value) => value + 1);
+    setSeconds(0); setRunning(false); setNotes(""); setShowOutline(false);
+  }
+
+  if (queue.length === 0) return <div className="empty-panel">Add or generate questions first, then come back to rehearse them.</div>;
+  if (!question) {
+    const average = session.length ? (session.reduce((sum, value) => sum + value, 0) / session.length).toFixed(1) : "0";
+    return <div className="mock-done"><p className="eyebrow">SESSION COMPLETE</p><h3>{session.length} questions rehearsed</h3><p>Average confidence <strong>{average} / 5</strong>. Your readiness score and weak spots have been updated.</p><button className="primary-button" onClick={restart}>Run another round <span aria-hidden="true">↗</span></button></div>;
+  }
+  return <div className="mock-layout">
+    <div className="mock-progress" role="progressbar" aria-valuemin={0} aria-valuemax={queue.length} aria-valuenow={index}><span style={{ width: `${(index / queue.length) * 100}%` }} /></div>
+    <div className="mock-meta"><span>Question {index + 1} of {queue.length}</span><span className={`category-tag category-${question.category}`}>{question.category.replace("-", " ")}</span><span className={`mock-timer ${seconds > 180 ? "over" : ""}`} aria-live="off">{formatClock(seconds)}<small>aim for 2–3 min</small></span></div>
+    <p className="mock-prompt">{question.prompt}</p>
+    <div className="mock-controls">
+      <button className="ghost-button" onClick={() => setRunning((value) => !value)}>{running ? "Pause timer" : seconds ? "Resume timer" : "Start timer"}</button>
+      <button className="ghost-button" onClick={() => setShowOutline((value) => !value)}>{showOutline ? "Hide outline" : "Peek at the outline"}</button>
+    </div>
+    <label className="mock-notes">Jot your answer (kept only on this screen)<textarea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Structure first: situation, approach, trade-offs, result." /></label>
+    {showOutline && <div className="mock-outline"><span>WHAT A STRONG ANSWER COVERS</span><p>{question.answer_outline || "No outline was written for this question."}</p></div>}
+    <div className="confidence-row"><span id="mock-rate">How did that go?</span><div className="confidence-buttons" role="group" aria-labelledby="mock-rate">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} onClick={() => rate(rating)} aria-label={`Rate ${rating} of 5`}>{rating}</button>)}</div></div>
+  </div>;
 }
 
 const EXAMPLE_POSTING = {
@@ -538,22 +643,28 @@ function KitWorkspace({ saved, view, setView, onSave, saving, onConfidence, onRe
   const unrated = draft.flashcards.filter((card) => !practice[card.id]);
   const questionById = new Map(draft.questions.map((question) => [question.id, question]));
   const regenerating = Boolean(busy);
+  const progress = dayProgress(saved, draft.schedule.days_available);
+  const readiness = computeReadiness(draft, practice);
+  const weakSpots = [...readiness.rows].sort((left, right) => left.score - right.score || Number(right.req.priority === "must") - Number(left.req.priority === "must")).slice(0, 3);
 
   return <>
-    <div className="kit-heading screen-only"><div><p className="eyebrow">PREPARATION KIT <span className="heading-slash">/</span> {draft.role.seniority || "ROLE PLAN"}</p><h1>{draft.role.title}<span className="heading-dot">.</span></h1><div className="kit-meta"><span className="meta-company">{draft.source.company}</span><span>{draft.schedule.days_available} days</span><span>{draft.role.requirements.length} requirements</span></div></div><div className="kit-heading-actions"><span className={`coverage-pill ${coveragePercent === 100 ? "coverage-complete" : ""}`}><span />{coveragePercent}% mapped</span><button className="ghost-button" onClick={() => window.print()} title="Print or save as PDF">Print one-pager</button><span className="save-state" role="status">{saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}</span>{dirty && <button className="primary-button save-button" disabled={saving} onClick={() => void flush()}>Save now</button>}</div></div>
+    <div className="kit-heading screen-only"><div><p className="eyebrow">PREPARATION KIT <span className="heading-slash">/</span> {draft.role.seniority || "ROLE PLAN"}</p><h1>{draft.role.title}<span className="heading-dot">.</span></h1><div className="kit-meta"><span className="meta-company">{draft.source.company}</span><span>{plural(draft.schedule.days_available, "day")}{progress.finished ? " · plan complete" : ` · day ${progress.today} today`}</span><span>{plural(draft.role.requirements.length, "requirement")}</span><span>{readiness.overall}% ready</span></div></div><div className="kit-heading-actions"><span className={`coverage-pill ${coveragePercent === 100 ? "coverage-complete" : ""}`}><span />{coveragePercent}% mapped</span><button className="ghost-button" onClick={() => window.print()} title="Print or save as PDF">Print one-pager</button><span className="save-state" role="status">{saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}</span>{dirty && <button className="primary-button save-button" disabled={saving} onClick={() => void flush()}>Save now</button>}</div></div>
     {localError && <div className="notice error-notice" role="alert"><span>{localError}</span><button onClick={() => setLocalError("")} aria-label="Dismiss error">×</button></div>}
     {regenerating && <div className="notice info-notice" role="status"><span><span className="button-loader dark" /> Regenerating {busy}… your edits elsewhere are kept.</span></div>}
     <div className="screen-only">
-    <nav className="kit-tabs" aria-label="Kit sections">{(["overview", "questions", "practice", "schedule"] as View[]).map((item) => <button key={item} className={view === item ? "selected" : ""} aria-current={view === item} onClick={() => setView(item)}>{item === "overview" ? "Brief & coverage" : item === "questions" ? "Question bank" : item === "practice" ? "Practice" : "Schedule"}{item === "questions" && <sup>{draft.questions.length}</sup>}</button>)}</nav>
+    <nav className="kit-tabs" aria-label="Kit sections">{(["overview", "questions", "practice", "mock", "schedule"] as View[]).map((item) => <button key={item} className={view === item ? "selected" : ""} aria-current={view === item} onClick={() => setView(item)}>{item === "overview" ? "Brief & coverage" : item === "questions" ? "Question bank" : item === "practice" ? "Practice" : item === "mock" ? "Mock interview" : "Schedule"}{item === "questions" && <sup>{draft.questions.length}</sup>}</button>)}</nav>
 
     {view === "overview" && <div className="overview-layout">
       <section className="main-column"><div className="brief-section"><div className="section-heading compact"><div><span className="section-number">01</span><h2>Company brief</h2></div><button className="ghost-button" disabled={regenerating} onClick={() => void regenerate("the company brief", { section: "company_brief" })}>↻ Regenerate brief</button></div>
         <p className="brief-summary">{draft.company_brief.summary || "No company summary was available from the research sources."}</p>
         {draft.company_brief.what_they_do && <p className="brief-detail">{draft.company_brief.what_they_do}</p>}
         {draft.company_brief.hiring_process && <div className="hiring-box"><span>HOW THEY HIRE</span><p>{draft.company_brief.hiring_process}</p></div>}
-        <div className="source-list"><span>Sources</span>{draft.company_brief.sources.length ? draft.company_brief.sources.map((source) => <a href={source} target="_blank" rel="noreferrer" key={source}>{hostLabel(source)}{new URL(source).pathname !== "/" ? new URL(source).pathname.slice(0, 24) : ""} <span aria-hidden="true">↗</span></a>) : <span className="no-sources">No pages were available.</span>}</div>
+        <div className="source-list"><span>Sources</span>{draft.company_brief.sources.length ? draft.company_brief.sources.map((source) => <a href={source} target="_blank" rel="noreferrer" key={source}>{sourceLabel(source)} <span aria-hidden="true">↗</span></a>) : <span className="no-sources">No pages were available.</span>}</div>
         {draft.research_notes && draft.research_notes.length > 0 && <details className="research-notes"><summary>{draft.research_notes.length} research note{draft.research_notes.length === 1 ? "" : "s"} (gaps and skipped sources)</summary><ul>{draft.research_notes.map((note) => <li key={note}>{note}</li>)}</ul></details>}</div>
-        <div className="requirements-section"><div className="section-heading compact"><div><span className="section-number">02</span><h2>Role signals</h2></div><span className="section-side-note">FROM YOUR DESCRIPTION</span></div>{draft.role.requirements.length ? <div className="requirement-list">{draft.role.requirements.map((requirement) => <div className="requirement-row" key={requirement.id}><span className={`priority-mark ${requirement.priority}`} /> <span className="requirement-text">{requirement.text}</span><span className="kind-tag">{requirement.kind}</span><span className={`priority-tag ${requirement.priority}`}>{requirement.priority}</span></div>)}</div> : <div className="no-requirements">The description did not contain enough detail to extract requirements, so this kit is intentionally thin rather than invented.</div>}</div>
+        <div className="readiness-section"><div className="section-heading compact"><div><span className="section-number">02</span><h2>Readiness and weak spots</h2></div><button className="ghost-button" onClick={() => setView("mock")}>Start a mock round</button></div>
+          <div className="readiness-grid"><div className="ring" style={{ background: `conic-gradient(#48745c ${readiness.overall * 3.6}deg, #e2e8e1 0)` }} role="img" aria-label={`Overall readiness ${readiness.overall} percent`}><span>{readiness.overall}<small>%</small></span></div>
+            <div className="weak-list"><p className="weak-help">Built from your own confidence ratings on cards and mock questions. Must-haves count double.</p>{weakSpots.length ? weakSpots.map((row) => <div className="weak-row" key={row.req.id}><div><span className={`priority-tag ${row.req.priority}`}>{row.req.priority}</span> {row.req.text}</div><div className="weak-bar" aria-hidden="true"><span style={{ width: `${Math.max(4, Math.round(row.score * 100))}%` }} /></div><small>{row.rated === 0 ? "Not practised yet" : `${Math.round(row.score * 100)}% · ${row.rated}/${row.total} rated`}</small></div>) : <p className="weak-help">Add requirements to track readiness.</p>}<button className="link-button" onClick={() => setView("practice")}>Practise the weakest first</button></div></div></div>
+        <div className="requirements-section"><div className="section-heading compact"><div><span className="section-number">03</span><h2>Role signals</h2></div><span className="section-side-note">FROM YOUR DESCRIPTION</span></div>{draft.role.requirements.length ? <div className="requirement-list">{draft.role.requirements.map((requirement) => <div className="requirement-row" key={requirement.id}><span className={`priority-mark ${requirement.priority}`} /> <span className="requirement-text">{requirement.text}</span><span className="kind-tag">{requirement.kind}</span><span className={`priority-tag ${requirement.priority}`}>{requirement.priority}</span></div>)}</div> : <div className="no-requirements">The description did not contain enough detail to extract requirements, so this kit is intentionally thin rather than invented.</div>}</div>
         <div className="danger-zone"><button className="link-button danger" onClick={() => { if (window.confirm("Delete this kit permanently?")) void onDelete(); }}>Delete this kit</button></div>
       </section>
       <aside className="coverage-aside"><div className="coverage-number">{coveragePercent}<span>%</span></div><h3>Coverage map</h3><p>{draft.role.requirements.length - uncovered.length} of {draft.role.requirements.length} role signals connect to practice questions.</p><div className="coverage-track"><span style={{ width: `${coveragePercent}%` }} /></div><div className="coverage-stat"><span>Requirements</span><strong>{draft.role.requirements.length}</strong></div><div className="coverage-stat"><span>Questions</span><strong>{draft.questions.length}</strong></div><div className="coverage-stat"><span>Coverage passes</span><strong>{draft.coverage.passes}</strong></div><div className="coverage-note">{uncovered.length ? `${uncovered.length} requirement(s) are not connected to a question.` : "Every extracted requirement has a question."}</div></aside>
@@ -569,8 +680,8 @@ function KitWorkspace({ saved, view, setView, onSave, saving, onConfidence, onRe
       </div>
       <p className="toolbar-help">Questions you edit, write or pin are kept when a category is regenerated.</p>
       {draft.questions.length ? <div className="question-list">{draft.questions.map((question, index) => <article className="question-item" key={question.id}><div className="question-top"><span className="question-index">{String(index + 1).padStart(2, "0")}</span><select aria-label={`Question ${index + 1} category`} className={`category-select category-${question.category}`} value={question.category} onChange={(event) => change((kit) => { kit.questions[index].category = event.target.value as Category; })}>{CATEGORIES.map((category) => <option key={category} value={category}>{category.replace("-", " ")}</option>)}</select>{question.origin && question.origin !== "generated" && <span className={`origin-tag origin-${question.origin}`}>{question.origin}</span>}<span className="difficulty" title={`Difficulty ${question.difficulty} of 3`}>{[1, 2, 3].map((level) => <i key={level} className={level <= question.difficulty ? "filled" : ""} />)}</span><div className="reorder-actions"><button onClick={() => moveQuestion(index, -1)} disabled={index === 0} aria-label={`Move question ${index + 1} up`}>↑</button><button onClick={() => moveQuestion(index, 1)} disabled={index === draft.questions.length - 1} aria-label={`Move question ${index + 1} down`}>↓</button></div></div>
-        <textarea aria-label={`Question ${index + 1} prompt`} value={question.prompt} onChange={(event) => change((kit) => { kit.questions[index].prompt = event.target.value; })} rows={2} />
-        <label className="outline-label">Answer outline<textarea aria-label={`Question ${index + 1} answer outline`} value={question.answer_outline} onChange={(event) => change((kit) => { kit.questions[index].answer_outline = event.target.value; })} rows={2} /></label>
+        <AutoTextarea aria-label={`Question ${index + 1} prompt`} value={question.prompt} onChange={(event) => change((kit) => { kit.questions[index].prompt = event.target.value; })} rows={2} />
+        <label className="outline-label">Answer outline<AutoTextarea aria-label={`Question ${index + 1} answer outline`} value={question.answer_outline} onChange={(event) => change((kit) => { kit.questions[index].answer_outline = event.target.value; })} rows={2} /></label>
         <details className="req-links"><summary>{question.requirement_ids.length} linked role signal{question.requirement_ids.length === 1 ? "" : "s"}</summary>{draft.role.requirements.map((requirement) => <label key={requirement.id} className="check-row"><input type="checkbox" checked={question.requirement_ids.includes(requirement.id)} onChange={() => toggleRequirement(question, index, requirement.id)} />{requirement.text}</label>)}</details>
         <div className="question-footer"><label className="check-row"><input type="checkbox" checked={Boolean(question.pinned)} onChange={(event) => change((kit) => { kit.questions[index].pinned = event.target.checked; })} />Pin (keep on regenerate)</label><span className="item-actions"><label className="diff-label">Difficulty<select value={question.difficulty} onChange={(event) => change((kit) => { kit.questions[index].difficulty = Number(event.target.value); })}>{[1, 2, 3].map((level) => <option key={level} value={level}>{level}</option>)}</select></label><button className="link-button danger" onClick={() => change((kit) => { kit.questions.splice(index, 1); })} aria-label={`Delete question ${index + 1}`}>Delete</button></span></div></article>)}</div> : <div className="empty-panel">{draft.role.requirements.length ? "No questions yet. Add one above or regenerate a category." : "No requirements were found in the description, so no questions were generated."}</div>}</section>}
 
@@ -580,9 +691,11 @@ function KitWorkspace({ saved, view, setView, onSave, saving, onConfidence, onRe
       {currentCard ? <div className="practice-layout"><div className="practice-progress"><span>Card {(activeCard % weakFirstCards.length) + 1} <i>/</i> {weakFirstCards.length}</span><span>{practice[currentCard.id] ? `Last confidence ${practice[currentCard.id]} / 5` : "Not rated yet"}</span></div><button className={`flashcard ${revealed ? "revealed" : ""}`} onClick={() => setRevealed((value) => !value)} aria-label={revealed ? "Hide answer" : "Reveal answer"}><span className="flashcard-label">{revealed ? "ANSWER" : "PROMPT"}</span><span className="flashcard-content">{revealed ? currentCard.back : currentCard.front}</span><span className="flashcard-hint">{revealed ? "Tap to return to prompt" : "Tap to reveal"} <span>↗</span></span></button><div className="confidence-row"><span id="confidence-label">How confident do you feel?</span><div className="confidence-buttons" role="group" aria-labelledby="confidence-label">{[1, 2, 3, 4, 5].map((confidence) => <button key={confidence} onClick={() => { void onConfidence(currentCard.id, confidence); setActiveCard((value) => value + 1); setRevealed(false); }} aria-label={`Confidence ${confidence} of 5`}>{confidence}</button>)}</div></div><div className="practice-controls"><button onClick={() => { setActiveCard((value) => (value - 1 + weakFirstCards.length) % weakFirstCards.length); setRevealed(false); }}>← Previous</button><button onClick={() => { setActiveCard((value) => value + 1); setRevealed(false); }}>Next card →</button></div>
         <details className="card-editor"><summary>Edit this card</summary><label>Front<textarea rows={2} value={currentCard.front} onChange={(event) => change((kit) => { const card = kit.flashcards.find((item) => item.id === currentCard.id); if (card) card.front = event.target.value; })} /></label><label>Back<textarea rows={3} value={currentCard.back} onChange={(event) => change((kit) => { const card = kit.flashcards.find((item) => item.id === currentCard.id); if (card) card.back = event.target.value; })} /></label><div className="card-editor-actions"><label className="check-row"><input type="checkbox" checked={Boolean(currentCard.pinned)} onChange={(event) => change((kit) => { const card = kit.flashcards.find((item) => item.id === currentCard.id); if (card) card.pinned = event.target.checked; })} />Pin</label><button className="link-button danger" onClick={() => { change((kit) => { kit.flashcards = kit.flashcards.filter((item) => item.id !== currentCard.id); }); setRevealed(false); }}>Delete card</button></div></details></div> : <div className="empty-panel">No flashcards yet. Add one, or regenerate to create them from the requirements.</div>}</section>}
 
+    {view === "mock" && <section className="mock-view"><div className="section-heading"><div><span className="section-number">06</span><h2>Mock interview</h2></div><span className="section-side-note">WEAKEST QUESTIONS FIRST</span></div><MockInterview key={draft.questions.length} kit={draft} practice={practice} onRate={onConfidence} /></section>}
+
     {view === "schedule" && <section className="schedule-view"><div className="section-heading"><div><span className="section-number">05</span><h2>Your study rhythm</h2></div><span className="section-side-note">{draft.schedule.days_available} DAYS</span></div>
       <div className="toolbar"><label className="diff-label">Days<input type="number" min={1} max={60} value={scheduleDays} onChange={(event) => setScheduleDays(Math.min(60, Math.max(1, Number(event.target.value) || 1)))} /></label><button className="ghost-button" disabled={regenerating} onClick={() => void regenerate("the schedule", { section: "schedule", days: scheduleDays })}>↻ Rebuild schedule</button><span className="toolbar-help inline">Hardest, must-have material goes first. Your questions are not changed.</span></div>
-      <div className="schedule-list">{draft.schedule.days.map((day) => { const dayQuestions = day.question_ids.map((id) => questionById.get(id)).filter((item): item is Question => Boolean(item)); return <article className="schedule-day" key={day.day}><span className="day-number">{String(day.day).padStart(2, "0")}</span><div className="day-copy"><h3>{day.focus}</h3><p>{dayQuestions.length ? `${dayQuestions.length} question${dayQuestions.length === 1 ? "" : "s"} to work through` : "Review your company and role context"}</p><div className="day-questions">{dayQuestions.map((question) => <span key={question.id}>{question.prompt}</span>)}</div></div><span className="day-time">{day.minutes}<small>MIN</small></span></article>; })}</div></section>}
+      <div className="schedule-list">{draft.schedule.days.map((day) => { const dayQuestions = day.question_ids.map((id) => questionById.get(id)).filter((item): item is Question => Boolean(item)); return <article className={`schedule-day ${day.day === progress.today && !progress.finished ? "today" : ""}`} key={day.day} aria-current={day.day === progress.today && !progress.finished ? "date" : undefined}><span className="day-number">{String(day.day).padStart(2, "0")}</span><div className="day-copy"><h3>{day.focus}{day.day === progress.today && !progress.finished && <span className="today-badge">Today</span>}</h3><p>{dayQuestions.length ? `${dayQuestions.length} question${dayQuestions.length === 1 ? "" : "s"} to work through` : "Review your company and role context"}</p><div className="day-questions">{dayQuestions.map((question) => <span key={question.id}>{question.prompt}</span>)}</div></div><span className="day-time">{day.minutes}<small>MIN</small></span></article>; })}</div></section>}
     </div>
     <PrintSheet kit={draft} practice={practice} />
   </>;

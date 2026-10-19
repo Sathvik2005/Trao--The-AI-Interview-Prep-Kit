@@ -192,7 +192,7 @@ export class MongoStore implements DatabaseStore {
   async updatePractice(userId: string, kitId: string, flashcardId: string, confidence: number): Promise<SavedKit | null> {
     if (!ObjectId.isValid(kitId)) return null;
     const result = await this.kits!.findOneAndUpdate(
-      { _id: new ObjectId(kitId), user_id: new ObjectId(userId), "kit.flashcards.id": flashcardId },
+      { _id: new ObjectId(kitId), user_id: new ObjectId(userId), $or: [{ "kit.flashcards.id": flashcardId }, { "kit.questions.id": flashcardId }] },
       [{
         $set: {
           practice: {

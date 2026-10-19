@@ -77,6 +77,15 @@ Pure code (`src/domain/schedule.ts`). Questions are sorted must-have first, then
 
 Flashcards are shown least-confident first (unrated = 0, then 1–5). Confidence is stored per flashcard on the server. The panel shows how many cards are covered, lists the uncovered ones, and cards can be edited, pinned, added and deleted.
 
+## Creative features
+
+Interview prep fails in a few predictable places: people do not know *where they are weak*, they never rehearse out loud under time pressure, and they lose track of which day of the plan they are on. Three small features address those directly, and all reuse data the kit already has.
+
+- **Readiness and weak spots.** Each requirement gets a readiness score from your own confidence ratings on the flashcards and questions linked to it (unrated counts as 0, must-haves count double). The overview shows an overall ring and the three weakest requirements, so the next hour of study is obvious instead of guessed.
+- **Mock interview mode.** A timed round over the questions you are weakest on: start the clock (the target is 2-3 minutes), jot an answer, peek at the outline only if you are stuck, then rate yourself. Ratings are saved per question and feed readiness.
+- **Today's plan.** The schedule follows the real calendar from the day the kit was created. The dashboard shows today's focus and how many days are left, and the schedule marks today.
+- **Printable one-pager** (below).
+
 ## Creative feature: printable one-pager
 
 **Print one-pager** (top of every kit) turns the kit into a clean, print-styled document: company brief, how they hire, requirements marked must/nice, the day-by-day plan with the actual questions, the question bank by category with answer outlines, and flashcards with your confidence scores. Use the browser's *Save as PDF*.
