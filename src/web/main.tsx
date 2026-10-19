@@ -305,6 +305,10 @@ function AuthScreen({ mode, setMode, onSubmit, loading, error }: {
     </section>
     <section className="auth-panel">
       <div className="auth-card">
+        <div className="auth-tabs" role="tablist" aria-label="Account">
+          <button role="tab" type="button" aria-selected={mode === "login"} className={mode === "login" ? "selected" : ""} onClick={() => setMode("login")}>Sign in</button>
+          <button role="tab" type="button" aria-selected={mode === "register"} className={mode === "register" ? "selected" : ""} onClick={() => setMode("register")}>Create account</button>
+        </div>
         <p className="eyebrow">YOUR NEXT CHAPTER</p>
         <h2>{mode === "register" ? "Create your prep desk" : "Welcome back"}</h2>
         <p className="auth-subtitle">{mode === "register" ? "A quieter way to get interview-ready." : "Pick up where your preparation left off."}</p>

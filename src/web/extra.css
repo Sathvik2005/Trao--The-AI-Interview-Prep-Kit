@@ -48,3 +48,4 @@
 .notice{animation:pop-in .25s ease both}
 .skip-link{position:absolute;left:-999px;top:8px;background:#315d4b;color:#fff;padding:8px 12px;border-radius:4px;z-index:20}.skip-link:focus{left:8px}
 @media(prefers-reduced-motion:reduce){.job-card:not(.job-done):not(.job-failed){background:#fff}}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:26px;border:1px solid var(--line);border-radius:6px;padding:4px;background:#fff}.auth-tabs button{min-height:40px;border:0;border-radius:4px;background:transparent;color:#66736a;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s,color .2s}.auth-tabs button.selected{background:#315d4b;color:#fff}.auth-tabs button:not(.selected):hover{background:#eef4ee}
