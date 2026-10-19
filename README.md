@@ -14,9 +14,17 @@
 
 Prep Kit crawls the company's own site, looks for public discussion of how they interview, extracts what the posting actually asks for, and combines it all into a kit: a company brief, a role breakdown, a categorised question bank, flashcards and a day-by-day study schedule. Everything can be edited, reordered, pinned and regenerated section by section **without losing your work**, and you can practise inside the app.
 
-- **Live app:** https://trao-the-ai-interview-prep-kit.vercel.app
-- **API health:** https://trao-interview-prep-kit-api.onrender.com/api/health
-- Render's free tier sleeps when idle; the first request after a pause can take 30 to 60 seconds.
+## Deployment
+
+| | Link | Hosting |
+|---|---|---|
+| **Web app** | https://trao-the-ai-interview-prep-kit.vercel.app | Vercel (free) |
+| **API** | https://trao-interview-prep-kit-api.onrender.com | Render (free) |
+| **API health** | https://trao-interview-prep-kit-api.onrender.com/api/health | reports `persistence: mongodb` |
+| **Database** | MongoDB Atlas M0 | Atlas (free) |
+| **Source** | https://github.com/Sathvik2005/Trao--The-AI-Interview-Prep-Kit | public |
+
+Frontend and backend are deployed separately and both are publicly reachable. Sign in with an account you create on the sign-in screen (password of 12 or more characters). Render's free tier sleeps when idle, so the first request after a pause can take 30 to 60 seconds; open the health link first.
 
 ## What it does
 
@@ -120,6 +128,43 @@ Input: an array of `{ "id", "jd", "company_url", "days" }`. Output: `{ "version"
 | `TEST_EMAIL`, `TEST_PASSWORD` | API | Optional reviewer login created at boot (12+ character password). |
 | `DNS_SERVERS` | API (local) | Override resolvers when a network blocks MongoDB SRV lookups. |
 | `NODE_ENV`, `PORT` | API | Standard. `production` enables strict address checks. |
+
+## How this meets the assessment brief
+
+The project was built for the *Full-Stack Engineering Assessment: The AI Interview Prep Kit*. This is how each requirement is met; evidence is in [docs/E2E_REPORT.md](docs/E2E_REPORT.md) and the file-level mapping is in [docs/REQUIREMENTS_TRACEABILITY.md](docs/REQUIREMENTS_TRACEABILITY.md).
+
+| Brief | What was asked | How it is met |
+|---|---|---|
+| **1 Authentication** | Register, log in, log out; own kits only; handle expired sessions | bcrypt passwords; 2-hour tokens whose hashes are stored server-side so logout revokes them; every query is owner-scoped; the UI clears an expired session with a message |
+| **2 Input and research** | Pasted JD and company URL; several roles; crawl for what they do and how they hire; find public interview discussion; skip failed sources; rate-limit and back off | Form plus a JSON upload for several postings; ranked-link crawl with a one-level follow-up from careers pages; `robots.txt` honoured; Hacker News discussion search; 400 ms spacing and 429/503 backoff; every skipped source recorded in `research_notes` |
+| **3 Research and generation** | A sequence of deliberate steps that respond to what was found; schedule and coverage not given to the model | Nine ordered steps (see the diagram above). Questions are generated per category, and a hiring-process mention of system design adds that category. Coverage and schedule are plain code |
+| **4 The second pass** | After the first draft, find uncovered requirements and generate them; never ship uncovered must-haves | Code computes the gaps; only the missing requirements are sent back, up to three passes, then a template question. `coverage.passes` records it; **Close the gaps** in the UI runs the same pass on demand |
+| **5 Kit structure** | Appendix A fields named exactly; stable ids; must or nice; integer minutes | Zod schema with cross-reference rules; extensions (`origin`, `pinned`, `hiring_process`, `research_notes`) are optional |
+| **6 The builder** | Edit, reorder, move between categories, add, delete; regenerate one section without losing edits | All in the UI with autosave. The server marks each item `generated`, `edited` or `manual`; regeneration keeps edited, hand-written and pinned items and leaves other sections alone |
+| **7 Practice mode** | Step through flashcards, record confidence, show covered and not covered, order by least confident | Flashcard practice (least confident first) with a covered and not-covered panel, plus a timed mock interview and a readiness score |
+| **8 The schedule** | Exactly the requested days; every must-have present; harder material earlier; integer minutes | Pure code: must-have then hardest first, split into exactly N days; 15 + 10 x difficulty minutes per question |
+| **9 Batch entry point** | `npm run evaluate -- --input --output`; same pipeline; continue after a failure; five cases in fifteen minutes; credentials from environment variables; runs from a clean clone | Verified from a fresh clone: 3 cases in 71 seconds with only `GEMINI_API_KEY` set; local company sites with relative links work; failures are isolated |
+| **10 Edge cases** | Dead URL, no hiring page, two-line posting, no discussion, bad JSON, rate limits, duplicates, 1 and 60 days | Each yields an honest kit with the gap recorded, never an invented one; duplicate submissions return the existing kit; model errors retry across a model chain; 1 and 60 days both verified |
+| **11 Security** | Validate URLs, reject private addresses in production, restrict content types and sizes, treat page text as data | Address guard re-checked after DNS and every redirect; text content types only; 1 MB cap; untrusted text is passed to the model as JSON data and the output is schema-validated |
+| **12 Frontend** | Next.js and Tailwind (or equivalent); reusable components; loading, empty and error states; immediate edits; laptop, phone and keyboard | React, Vite and hand-written CSS (the stack difference is justified in [docs/DECISIONS.md](docs/DECISIONS.md)); step-by-step progress, skeletons, empty states, instant edits with debounced autosave; responsive layout; skip link and labelled controls |
+| **13 Backend** | Node.js; separated concerns; validation; persistence; structured errors; slow generation | Express with layered modules; Zod validation; MongoDB; one error shape; generation runs as a job with polled progress and a clean failure state |
+| **14 Code quality** | TypeScript or JavaScript; clean architecture; meaningful commits; tests for schedule, coverage and structure | Strict TypeScript; dependency direction web, API, pipeline, research and model, domain; 28 tests; commit history shows the development path |
+| **Creative feature** (optional) | One feature that solves a real prep problem | Readiness and weak spots, mock interview, today's plan and a printable one-pager, explained below |
+| **Deployment** (mandatory) | Public, frontend and backend both reachable, env vars documented, free tiers | See the Deployment table above and [docs/DEPLOYMENT_RUNBOOK.md](docs/DEPLOYMENT_RUNBOOK.md) |
+| **Submission** | Public repository, deployment link, walkthrough video, README | This repository; links above; README covers every item the brief lists |
+
+### Creative features
+
+Interview prep fails in predictable places: people do not know where they are weak, never rehearse under time pressure, and lose track of the plan. Each feature reuses data the kit already holds.
+
+- **Readiness and weak spots:** a score per requirement from your own confidence ratings (must-haves count double), shown as an overall ring and your three weakest requirements.
+- **Mock interview:** a timed round over your weakest questions; think against the clock, peek at the outline only if stuck, then rate yourself. Ratings feed readiness.
+- **Today's plan:** the schedule follows the calendar from the day the kit was created.
+- **Printable one-pager:** the whole plan on one clean page for use away from a screen.
+
+### What is deliberately different from the preferred stack
+
+The brief prefers Next.js with Tailwind and allows equivalents with a justification. This app is an authenticated single-page tool with no server-rendering or SEO need, so it uses Vite, React and hand-written CSS with design tokens. Everything else (Node, Express, MongoDB, TypeScript, a free-tier model) is as specified.
 
 ## Documentation
 
