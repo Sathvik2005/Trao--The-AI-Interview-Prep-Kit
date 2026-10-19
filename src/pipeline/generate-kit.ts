@@ -31,7 +31,7 @@ export interface GenerationDependencies extends CompanyResearchOptions {
 
 type Question = InterviewKit["questions"][number];
 type Flashcard = InterviewKit["flashcards"][number];
-export type RegenerableSection = "company_brief" | "questions" | "flashcards" | "schedule";
+export type RegenerableSection = "company_brief" | "questions" | "flashcards" | "schedule" | "coverage";
 
 const CATEGORIES: Category[] = ["technical", "behavioural", "system-design", "company-fit"];
 const MAX_COVERAGE_PASSES = 3;
@@ -412,6 +412,18 @@ export async function regenerateSection(kit: InterviewKit, options: RegenerateOp
       rebuilt = [...rebuilt, ...await questionsForCategory(category, targets, context, rebuilt, category === "company-fit" && targets.length === 0 ? 2 : undefined)];
     }
     const closed = await closeCoverageGaps(requirements, rebuilt, plan, context, next.coverage.passes, () => undefined);
+    next.questions = closed.questions;
+    next.coverage.passes = closed.passes;
+    for (const note of closed.notes) notes.add(note);
+  } else if (options.section === "coverage") {
+    // On-demand second pass: only requirements without a question are sent back for generation.
+    const context: QuestionContext = {
+      llm,
+      company: next.source.company,
+      brief: `${next.company_brief.summary} ${next.company_brief.what_they_do}`.trim(),
+      hiringProcess: next.company_brief.hiring_process ?? "",
+    };
+    const closed = await closeCoverageGaps(requirements, next.questions, planCategories(requirements, context.hiringProcess), context, next.coverage.passes, () => undefined);
     next.questions = closed.questions;
     next.coverage.passes = closed.passes;
     for (const note of closed.notes) notes.add(note);

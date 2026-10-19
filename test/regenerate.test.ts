@@ -63,6 +63,18 @@ describe("section regeneration", () => {
     expect(result.questions.map((question) => question.id)).toContain("q-a");
   });
 
+  it("closes a coverage gap on demand and records the extra pass", async () => {
+    const kit = baseKit();
+    kit.role.requirements.push({ id: "r3", text: "Experience with ClickHouse", kind: "technical", priority: "nice" });
+    kit.coverage.uncovered_requirement_ids = ["r3"];
+    kit.schedule.days[0].question_ids = kit.schedule.days[0].question_ids.slice();
+    const result = await regenerateSection(kit, { section: "coverage" }, { llm });
+    expect(result.coverage.uncovered_requirement_ids).toEqual([]);
+    expect(result.coverage.passes).toBe(2);
+    expect(result.questions.some((question) => question.requirement_ids.includes("r3"))).toBe(true);
+    expect(result.questions.filter((question) => question.id.startsWith("q-")).length).toBeGreaterThan(kit.questions.length);
+  });
+
   it("rebuilds only the schedule when asked and honours a new day count", async () => {
     const before = baseKit();
     const result = await regenerateSection(before, { section: "schedule", days: 4 }, { llm });

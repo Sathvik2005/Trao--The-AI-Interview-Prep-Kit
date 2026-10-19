@@ -40,7 +40,7 @@ const createKitSchema = z.object({
   days: z.number().int().min(1).max(60),
 }).strict();
 const regenerateSchema = z.object({
-  section: z.enum(["company_brief", "questions", "flashcards", "schedule"]),
+  section: z.enum(["company_brief", "questions", "flashcards", "schedule", "coverage"]),
   category: z.enum(["technical", "behavioural", "system-design", "company-fit"]).optional(),
   days: z.number().int().min(1).max(60).optional(),
 }).strict();
