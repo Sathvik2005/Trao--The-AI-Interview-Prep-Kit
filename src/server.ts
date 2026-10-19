@@ -14,6 +14,7 @@ const jwtSecret = process.env.JWT_SECRET;
 const production = process.env.NODE_ENV === "production";
 
 if (!mongoUri && production) throw new Error("MONGODB_URI is required in production.");
+if (production && !process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is required in production.");
 if (!jwtSecret || jwtSecret.length < 32) throw new Error("JWT_SECRET must be set to at least 32 characters.");
 
 const origins = (process.env.FRONTEND_ORIGIN || (production ? process.env.PUBLIC_APP_ORIGIN || "" : "http://localhost:5173,http://127.0.0.1:5173"))

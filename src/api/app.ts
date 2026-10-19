@@ -7,14 +7,17 @@ import bcrypt from "bcryptjs";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { z } from "zod";
 import { validateKit, type InterviewKit } from "../domain/kit-schema.js";
-import { generateInterviewKit, type GenerateKitInput } from "../pipeline/generate-kit.js";
+import { applyProvenance, reconcileKit } from "../domain/reconcile.js";
+import { generateInterviewKit, inputHash, regenerateSection, type GenerateKitInput, type ProgressEvent } from "../pipeline/generate-kit.js";
+import { JobRegistry } from "./jobs.js";
 import { hashJwtToken, type DatabaseStore, type SavedKit, type UserRecord } from "./store.js";
 
 interface AppOptions {
   store: DatabaseStore;
   jwtSecret: string;
   allowedOrigins?: string[];
-  generateKit?: (input: GenerateKitInput) => Promise<InterviewKit>;
+  generateKit?: (input: GenerateKitInput, onProgress?: (event: ProgressEvent) => void) => Promise<InterviewKit>;
+  regenerate?: typeof regenerateSection;
   production?: boolean;
 }
 
@@ -36,6 +39,11 @@ const createKitSchema = z.object({
   company_url: z.string().url().max(2048),
   days: z.number().int().min(1).max(60),
 }).strict();
+const regenerateSchema = z.object({
+  section: z.enum(["company_brief", "questions", "flashcards", "schedule"]),
+  category: z.enum(["technical", "behavioural", "system-design", "company-fit"]).optional(),
+  days: z.number().int().min(1).max(60).optional(),
+}).strict();
 const confidenceSchema = z.object({
   flashcard_id: z.string().min(1).max(200),
   confidence: z.number().int().min(1).max(5),
@@ -47,6 +55,15 @@ const audience = "ai-interview-prep-kit-web";
 function toPublicKit(saved: SavedKit): Omit<SavedKit, "user_id"> {
   const { user_id: _userId, ...result } = saved;
   return result;
+}
+
+/** Derived fields are repaired before strict validation; malformed bodies fall through to a 400. */
+function reconcileUntrusted(previous: InterviewKit, body: unknown): unknown {
+  try {
+    return reconcileKit(applyProvenance(previous, body as InterviewKit));
+  } catch {
+    return body;
+  }
 }
 
 function toPublicUser(user: UserRecord): { id: string; email: string; created_at: string } {
@@ -113,7 +130,14 @@ export function createApp(options: AppOptions): express.Express {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use((request, response, next) => {
     const origin = request.get("origin");
-    if (origin && !origins.has(origin)) {
+    const sameHost = (() => {
+      try {
+        return Boolean(origin) && new URL(origin!).host === request.get("host");
+      } catch {
+        return false;
+      }
+    })();
+    if (origin && !origins.has(origin) && !sameHost) {
       errorResponse(response, 403, "ORIGIN_NOT_ALLOWED", "This browser origin is not allowed.");
       return;
     }
@@ -121,21 +145,23 @@ export function createApp(options: AppOptions): express.Express {
   });
   app.use(cors({
     origin(origin, callback) {
-      callback(null, Boolean(!origin || origins.has(origin)));
+      callback(null, true);
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type"],
     maxAge: 600,
   }));
-  app.use(express.json({ limit: "64kb" }));
+  app.use(express.json({ limit: "512kb" }));
   app.use("/api", (_request, response, next) => {
     response.setHeader("Cache-Control", "no-store");
     next();
   });
 
   const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: "draft-8", legacyHeaders: false });
-  const generationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.GENERATION_RATE_LIMIT || 5), standardHeaders: "draft-8", legacyHeaders: false });
-  const generation = options.generateKit ?? generateInterviewKit;
+  const generationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.GENERATION_RATE_LIMIT || 30), standardHeaders: "draft-8", legacyHeaders: false });
+  const generation = options.generateKit ?? ((input: GenerateKitInput, onProgress?: (event: ProgressEvent) => void) => generateInterviewKit(input, { onProgress }));
+  const regenerate = options.regenerate ?? regenerateSection;
+  const jobs = new JobRegistry(options.store, (input, onProgress) => generation(input, onProgress));
   const requireUser = (request: Request, response: Response, next: NextFunction) => {
     void authenticate(request as AuthenticatedRequest, response, next, options);
   };
@@ -235,16 +261,60 @@ export function createApp(options: AppOptions): express.Express {
   app.post("/api/kits", requireUser, generationLimiter, async (request: AuthenticatedRequest, response, next) => {
     try {
       const input = createKitSchema.parse(request.body);
-      let generated: InterviewKit;
-      try {
-        generated = validateKit(await generation(input));
-      } catch (error) {
-        console.error("Kit generation failed:", error instanceof Error ? error.message : "Unknown error");
-        errorResponse(response, 502, "GENERATION_FAILED", "The kit could not be generated. Check the URL and provider configuration, then try again.");
+      const hash = inputHash(input);
+      const existing = (await options.store.listKits(request.userId!)).find((item) => item.kit.source.input_hash === hash);
+      if (existing) {
+        response.status(200).json({ kit: toPublicKit(existing), duplicate: true });
         return;
       }
-      const saved = await options.store.createKit(request.userId!, generated);
-      response.status(201).json({ kit: toPublicKit(saved) });
+      const running = jobs.findRunningByHash(request.userId!, hash);
+      if (running) {
+        response.status(202).json({ job: running, duplicate: true });
+        return;
+      }
+      if (!jobs.canStart(request.userId!)) {
+        errorResponse(response, 429, "TOO_MANY_GENERATIONS", "Two kits are already being generated. Wait for one to finish.");
+        return;
+      }
+      response.status(202).json({ job: jobs.start(request.userId!, input, hash) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/jobs/:id", requireUser, (request: AuthenticatedRequest, response) => {
+    const jobId = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
+    const job = jobs.find(request.userId!, jobId);
+    if (!job) {
+      errorResponse(response, 404, "JOB_NOT_FOUND", "Generation job not found or expired.");
+      return;
+    }
+    response.json({ job });
+  });
+
+  app.post("/api/kits/:id/regenerate", requireUser, generationLimiter, async (request: AuthenticatedRequest, response, next) => {
+    try {
+      const input = regenerateSchema.parse(request.body);
+      const kitId = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
+      const current = (await options.store.listKits(request.userId!)).find((item) => item.id === kitId);
+      if (!current) {
+        errorResponse(response, 404, "KIT_NOT_FOUND", "Kit not found.");
+        return;
+      }
+      let regenerated: InterviewKit;
+      try {
+        regenerated = await regenerate(current.kit, input);
+      } catch (error) {
+        console.error("Regeneration failed:", error instanceof Error ? error.message : "Unknown error");
+        errorResponse(response, 502, "REGENERATION_FAILED", "That section could not be regenerated. Your existing kit is unchanged.");
+        return;
+      }
+      const updated = await options.store.updateKit(request.userId!, kitId, regenerated);
+      if (!updated) {
+        errorResponse(response, 404, "KIT_NOT_FOUND", "Kit not found.");
+        return;
+      }
+      response.json({ kit: toPublicKit(updated) });
     } catch (error) {
       next(error);
     }
@@ -266,8 +336,13 @@ export function createApp(options: AppOptions): express.Express {
 
   app.put("/api/kits/:id", requireUser, async (request: AuthenticatedRequest, response, next) => {
     try {
-      const kit = validateKit(request.body);
       const kitId = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
+      const previous = (await options.store.listKits(request.userId!)).find((item) => item.id === kitId);
+      if (!previous) {
+        errorResponse(response, 404, "KIT_NOT_FOUND", "Kit not found.");
+        return;
+      }
+      const kit = validateKit(reconcileUntrusted(previous.kit, request.body));
       const updated = await options.store.updateKit(request.userId!, kitId, kit);
       if (!updated) {
         errorResponse(response, 404, "KIT_NOT_FOUND", "Kit not found.");

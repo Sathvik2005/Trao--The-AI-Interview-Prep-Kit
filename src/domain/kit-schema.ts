@@ -17,6 +17,8 @@ const questionSchema = z
     prompt: z.string().min(1),
     answer_outline: z.string(),
     difficulty: z.number().int().min(1).max(3),
+    origin: z.enum(["generated", "edited", "manual"]).optional(),
+    pinned: z.boolean().optional(),
   })
   .strict();
 
@@ -26,6 +28,8 @@ const flashcardSchema = z
     front: z.string().min(1),
     back: z.string().min(1),
     requirement_ids: z.array(z.string()),
+    origin: z.enum(["generated", "edited", "manual"]).optional(),
+    pinned: z.boolean().optional(),
   })
   .strict();
 
@@ -49,6 +53,7 @@ export const kitSchema = z
         jd_chars: z.number().int().nonnegative(),
         researched_at: z.string().datetime({ offset: true }),
         pages_used: z.array(z.string().url()),
+        input_hash: z.string().optional(),
       })
       .strict(),
     company_brief: z
@@ -56,6 +61,7 @@ export const kitSchema = z
         summary: z.string(),
         what_they_do: z.string(),
         sources: z.array(z.string().url()),
+        hiring_process: z.string().optional(),
       })
       .strict(),
     role: z
@@ -80,6 +86,7 @@ export const kitSchema = z
         passes: z.number().int().positive(),
       })
       .strict(),
+    research_notes: z.array(z.string()).optional(),
   })
   .strict()
   .superRefine((kit, context) => {
