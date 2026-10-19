@@ -140,6 +140,18 @@ Frontend on Vercel, backend on Render, database on MongoDB Atlas. See `docs/DEPL
 
 Render's free tier sleeps after idle time; the first request can take ~30–60 s. Call `/api/health` before a demo.
 
+## Key design decisions and trade-offs
+
+- **What the model may not decide.** Coverage and scheduling are plain code. The model writes text; code decides which requirement lacks a question, which day a question lands on, and whether the kit is valid. A model asked "is everything covered?" will say yes; a set difference will not.
+- **Nothing is invented.** Every extracted requirement must carry a verbatim quote from the description; code drops any candidate whose quote is not found. A two-line posting therefore yields a thin kit that says so, instead of padding.
+- **How many coverage passes: up to 3, then a template.** One pass is a single shot, which is what the brief wants to avoid. In practice a miss is almost always an omission by the model, and a targeted retry for only the missing requirements fixes it on the first try. A third attempt catches a flaky provider response. Beyond that the model is unlikely to succeed, and spending more tokens on a free tier risks the rate limit, so the loop stops and a plain template question is added with a note. The invariant that matters, no uncovered must-have ships, holds either way.
+- **Partial research is a result, not a failure.** An unreachable site, a missing hiring page or no public discussion is recorded in `research_notes` and the kit is still produced. `failed` is reserved for a case where no kit can be made at all.
+- **Provenance is assigned by the server.** The client never has to remember to mark an edit; the server diffs against the stored kit on every save. This keeps "edited" trustworthy and makes regeneration safe by construction.
+- **Jobs instead of a long request.** Generation takes 10-90 seconds and can fail halfway, so the API returns a job id and the UI shows each step. The trade-off is that progress lives in server memory, which is fine for one instance and noted as a limitation.
+- **One model chain, many guards.** Free-tier providers return 429/503 and retire models. Calls are capped process-wide, retried with backoff, fall back across models, and cool down a failing model. The trade-off is slightly higher latency on a bad day in exchange for kits that complete.
+- **Vite instead of Next.js.** Chosen for build speed and a simple static deploy, since the app has no need for server rendering.
+- **One repository.** The batch command and the web app must run the same pipeline, so they live together.
+
 ## Known limitations
 
 - Job progress lives in server memory: a restart mid-generation loses the progress view (the kit is only saved when complete), and it assumes a single backend instance.
