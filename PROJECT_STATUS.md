@@ -16,7 +16,7 @@ Updated: 2026-10-19
 | S2 Research and generation | PASS | Ranked-link crawl, robots.txt, backoff, Hacker News search, per-category LLM calls, coverage second pass; live PostHog run |
 | S3 Batch evaluator | PASS | `npm run evaluate` on 3 cases (real site, stub, unreachable site, 60 days): all `ok`, Appendix B shape, failures isolated |
 | S4 Automated tests and robustness | PASS | 27 tests; live e2e 28 of 28 checks; model fallback chain and tolerant parsing |
-| S5 Builder, regeneration, practice | PASS (not browser-verified) | Add/delete/reorder/move/pin, per-section regeneration, practice coverage; built and type-checked, not yet clicked through in a browser |
+| S5 Builder, regeneration, practice | PASS | Add/delete/reorder/move/pin, per-section regeneration, practice coverage, readiness, mock interview, today plan, print one-pager; 15 of 15 headless-Chrome checks pass against the live Vercel site |
 | S6 Integration | PASS | API with Atlas, job polling, dedupe, regeneration endpoint |
 | S7 Compliance audit | PASS | `docs/E2E_REPORT.md` maps every brief section to evidence |
 | S8 Reliability and security | PASS | SSRF guard, size limits, rate limits, retries; limitations listed in README |
@@ -26,11 +26,11 @@ Updated: 2026-10-19
 | S12 README, demo, readiness | PARTIAL | README, runbook and report done; demo video is the owner's to record |
 
 ## Verified checks
+- Real-browser UI flow (headless Chrome) against the live site: 15 of 15 pass, including edit autosave and regeneration that keeps the edit.
 - `npm run typecheck`, `npm run build`, `npm test -- --run` (27 tests) pass.
 - Live e2e (Atlas + Gemini + posthog.com + Hacker News): 28 of 28 pass, about 25 s per kit.
 - Batch command: 3 of 3 cases `ok` (posthog 4 days, stub 1 day, unreachable site 60 days).
 
 ## Honest gaps
-- No browser walkthrough of the UI has been recorded in this environment.
 - The coverage second pass is implemented and unit-tested but did not need to fire on the live PostHog run.
 - Free Render sleeps when idle; open `/api/health` before a demo.

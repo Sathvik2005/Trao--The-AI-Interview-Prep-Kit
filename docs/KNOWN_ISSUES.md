@@ -9,4 +9,3 @@
 - The session token is stored in `sessionStorage`; an XSS bug would expose it. There is no per-user LLM cost budget beyond rate limits.
 - Gemini model availability changes. The default is the `gemini-flash-lite-latest` alias with fallback models; set `GEMINI_MODEL` or `GEMINI_FALLBACK_MODELS` if a model is retired.
 - The free Render tier sleeps when idle; the first request takes about 30-60 seconds.
-- The UI has been built and type-checked but not recorded in a browser session in the development environment.
