@@ -2,38 +2,35 @@
 
 Updated: 2026-10-19
 
-## Current Focus
-- Current stage: S6, full-stack integration and deployment preparation
-- Verified locally: the app builds, the no-Docker memory mode works, and most of the automated checks pass
-- Active blocker: 1 API regression remains in the edit/provenance flow for hand-edited and added questions during regeneration
-- Production blocker: no live MongoDB deployment or public hosting has been verified yet
+## Current focus
+- Stage: S9-S11 (deployment). Code, tests and live end-to-end are complete.
+- Blocker: needs the owner's Render, Vercel and Atlas dashboard steps (see `docs/DEPLOYMENT_RUNBOOK.md`).
+- Deployment URLs: none verified yet. Do not record a URL here until it has been smoke-tested.
 
-## Stage Tracker
+## Stage tracker
 
-| Stage | Status | Notes |
+| Stage | Status | Evidence |
 |---|---|---|
-| S0 Repository audit and baseline | PARTIAL | Repo was inspected and the project structure was confirmed; repo setup and final Git hygiene remain unfinished. |
-| S1 Requirements, schema, validation | PASS | Domain and kit validation logic is implemented and stable. |
-| S2 Research and generation pipeline | PARTIAL | Generation works for fixtures and safety checks are in place, but some research and regeneration edge cases remain partially implemented. |
-| S3 Batch evaluator and CLI contract | PASS | CLI contract and evaluator behavior are validated. |
-| S4 Automated evaluation and robustness | PARTIAL | Most automated checks pass; one API regression is still open. |
-| S5 Builder UI and practice flow | PARTIAL | Core UI and practice flows are present, but edit provenance and regeneration behavior are not fully complete. |
-| S6 Full-stack integration and deployment prep | PARTIAL | The local app is working; production deployment remains unverified. |
-| S7 Assessment compliance audit | PARTIAL | Audit evidence exists, but final compliance closure is still incomplete. |
-| S8 Reliability and security | PARTIAL | Security and rate-limiting layers are present, but some production-hardening items remain. |
-| S9 Frontend deployment | NOT_VERIFIED | No live Vercel deployment has been confirmed. |
-| S10 Backend and database deployment | NOT_VERIFIED | No live MongoDB/Render deployment has been confirmed. |
-| S11 Production smoke tests | BLOCKED | Live production smoke testing is blocked until deployment infrastructure is configured. |
-| S12 Final docs and readiness | PARTIAL | Local docs are present, but final demo and readiness artifacts are still incomplete. |
+| S0 Repository baseline | PASS | History pushed to `Sathvik2005/Trao--The-AI-Interview-Prep-Kit`; `.env` is gitignored |
+| S1 Schema and validation | PASS | Zod schema with cross-reference checks; optional provenance and research-note extensions |
+| S2 Research and generation | PASS | Ranked-link crawl, robots.txt, backoff, Hacker News search, per-category LLM calls, coverage second pass; live PostHog run |
+| S3 Batch evaluator | PASS | `npm run evaluate` on 3 cases (real site, stub, unreachable site, 60 days): all `ok`, Appendix B shape, failures isolated |
+| S4 Automated tests and robustness | PASS | 27 tests; live e2e 28 of 28 checks; model fallback chain and tolerant parsing |
+| S5 Builder, regeneration, practice | PASS (not browser-verified) | Add/delete/reorder/move/pin, per-section regeneration, practice coverage; built and type-checked, not yet clicked through in a browser |
+| S6 Integration | PASS | API with Atlas, job polling, dedupe, regeneration endpoint |
+| S7 Compliance audit | PASS | `docs/E2E_REPORT.md` maps every brief section to evidence |
+| S8 Reliability and security | PASS | SSRF guard, size limits, rate limits, retries; limitations listed in README |
+| S9 Frontend deployment (Vercel) | NOT_VERIFIED | `vercel.json` ready; needs project and `VITE_API_URL` |
+| S10 Backend and database (Render, Atlas) | NOT_VERIFIED | `render.yaml` ready; needs env vars and `FRONTEND_ORIGIN` |
+| S11 Production smoke test | BLOCKED | Waits on S9 and S10 |
+| S12 README, demo, readiness | PARTIAL | README, runbook and report done; demo video is the owner's to record |
 
-## Verified Checks
-- `npm test -- --run` — 26 passed, 1 failed (2026-10-19)
-- `npm run build` — PASS (2026-10-19; Vite production build completed successfully)
-- Local app runtime without Docker remains functional in memory mode
+## Verified checks
+- `npm run typecheck`, `npm run build`, `npm test -- --run` (27 tests) pass.
+- Live e2e (Atlas + Gemini + posthog.com + Hacker News): 28 of 28 pass, about 25 s per kit.
+- Batch command: 3 of 3 cases `ok` (posthog 4 days, stub 1 day, unreachable site 60 days).
 
-## Current Open Issue
-- One failing API test: "marks hand-edited and added questions so a regeneration can keep them"
-- This is the highest-priority remaining code issue in the current tracker because it affects the regeneration and edit-provenance flow.
-
-## Release Readiness
-The project is not yet release-ready or deployment-ready. It is in a verified local-working state with one remaining regression and no confirmed production deployment.
+## Honest gaps
+- No browser walkthrough of the UI has been recorded in this environment.
+- The coverage second pass is implemented and unit-tested but did not need to fire on the live PostHog run.
+- Nothing is deployed.
