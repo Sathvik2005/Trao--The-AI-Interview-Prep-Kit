@@ -3,9 +3,9 @@
 Updated: 2026-10-19
 
 ## Current focus
-- Stage: S9-S11 (deployment). Code, tests and live end-to-end are complete.
-- Blocker: needs the owner's Render, Vercel and Atlas dashboard steps (see `docs/DEPLOYMENT_RUNBOOK.md`).
-- Deployment URLs: none verified yet. Do not record a URL here until it has been smoke-tested.
+- Stage: S12 (final readiness). All stages S0-S11 are verified; what remains is the demo video and the submission.
+- Frontend (Vercel): https://trao-the-ai-interview-prep-kit.vercel.app
+- Backend (Render): https://trao-interview-prep-kit-api.onrender.com (health: `/api/health`, reports `persistence: mongodb`)
 
 ## Stage tracker
 
@@ -20,9 +20,9 @@ Updated: 2026-10-19
 | S6 Integration | PASS | API with Atlas, job polling, dedupe, regeneration endpoint |
 | S7 Compliance audit | PASS | `docs/E2E_REPORT.md` maps every brief section to evidence |
 | S8 Reliability and security | PASS | SSRF guard, size limits, rate limits, retries; limitations listed in README |
-| S9 Frontend deployment (Vercel) | NOT_VERIFIED | `vercel.json` ready; needs project and `VITE_API_URL` |
-| S10 Backend and database (Render, Atlas) | NOT_VERIFIED | `render.yaml` ready; needs env vars and `FRONTEND_ORIGIN` |
-| S11 Production smoke test | BLOCKED | Waits on S9 and S10 |
+| S9 Frontend deployment (Vercel) | PASS | Public URL above serves the build with `VITE_API_URL` pointing at Render |
+| S10 Backend and database (Render, Atlas) | PASS | Health reports `mongodb`; `FRONTEND_ORIGIN` allows the Vercel origin (preflight 204); unknown origins get 403 |
+| S11 Production smoke test | PASS | Registration 201 and login 200 from the Vercel origin; the e2e script against production: real PostHog kit in about 20 s, edit kept through category regeneration, schedule rebuild, practice confidence, persistence in Atlas |
 | S12 README, demo, readiness | PARTIAL | README, runbook and report done; demo video is the owner's to record |
 
 ## Verified checks
@@ -33,4 +33,4 @@ Updated: 2026-10-19
 ## Honest gaps
 - No browser walkthrough of the UI has been recorded in this environment.
 - The coverage second pass is implemented and unit-tested but did not need to fire on the live PostHog run.
-- Nothing is deployed.
+- Free Render sleeps when idle; open `/api/health` before a demo.

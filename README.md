@@ -2,6 +2,12 @@
 
 Paste a job description and a company website; the app researches the company, extracts the role's requirements, and builds a kit you can reshape and practise against: company brief, role breakdown, categorised question bank, flashcards and a day-by-day study schedule.
 
+## Live deployment
+
+- App (Vercel): https://trao-the-ai-interview-prep-kit.vercel.app
+- API (Render): https://trao-interview-prep-kit-api.onrender.com/api/health
+- Reviewer login: create an account on the sign-in screen (password 12+ characters). The free Render service sleeps when idle, so the first request after a pause can take 30-60 seconds.
+
 ## Stack and why
 
 | Layer | Choice | Why |
